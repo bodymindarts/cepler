@@ -1,26 +1,27 @@
+use glob::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::File,
     io::{BufReader, Read},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub environments: HashMap<String, EnvironmentConf>,
+    pub environments: HashMap<String, EnvironmentConfig>,
     pub hook: HookConf,
 }
 
 impl Config {
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Config, anyhow::Error> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, anyhow::Error> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
 
         Self::from_reader(reader)
     }
 
-    fn from_reader(reader: impl Read) -> Result<Config, anyhow::Error> {
+    fn from_reader(reader: impl Read) -> Result<Self, anyhow::Error> {
         let mut config: Config = serde_yaml::from_reader(reader)?;
         for (name, mut env) in config.environments.iter_mut() {
             env.name = name.clone();
@@ -37,11 +38,22 @@ pub struct HookConf {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EnvironmentConf {
+pub struct EnvironmentConfig {
     #[serde(default)]
-    name: String,
+    pub name: String,
     #[serde(default)]
     head_files: Vec<String>,
+}
+
+impl EnvironmentConfig {
+    pub fn files(&self) -> impl Iterator<Item = PathBuf> {
+        let files = self.head_files.to_vec();
+        files
+            .into_iter()
+            .map(|file| glob(&file).expect("Couldn't resolve glob"))
+            .flatten()
+            .map(|res| res.expect("Couldn't list file"))
+    }
 }
 
 #[cfg(test)]
