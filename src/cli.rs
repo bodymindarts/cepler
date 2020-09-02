@@ -7,6 +7,10 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") {config_file} "Cepler config file")
+        (@subcommand record =>
+            (about: "Record the state of an environment in the statefile")
+            (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+        )
         (@subcommand hook =>
             (about: "Execute the hook")
         )
@@ -18,14 +22,14 @@ fn app() -> App<'static, 'static> {
 pub fn run() {
     let matches = app().get_matches();
     match matches.subcommand() {
-        ("hook", Some(_)) => hook(matches.value_of("CONFIG_FILE").unwrap()),
+        ("hook", Some(_)) => hook(conf_from_matches(&matches)),
+        ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)),
         _ => unreachable!(),
     }
 }
 
-fn hook(conf_file: &str) {
+fn hook(conf: Config) {
     use std::process::{Command, Stdio};
-    let conf = Config::from_file(conf_file).unwrap();
     println!("Executing hook: '{}'", conf.hook.cmd);
     let mut cmd = Command::new(conf.hook.cmd)
         .args(&conf.hook.args)
@@ -40,6 +44,16 @@ fn hook(conf_file: &str) {
     }
 }
 
+fn record(matches: &ArgMatches, config: Config) {
+    let env = matches.value_of("ENVIRONMENT").unwrap();
+    if let Some(env) = config.environments.get(env) {
+        println!("FOUN");
+    } else {
+        eprintln!("Couldn't find environment '{}' in cepler.yml", env);
+        std::process::exit(1);
+    }
+}
+
 fn config_file(file: String) -> Result<(), String> {
     use std::path::Path;
     let path = Path::new(&file);
@@ -50,4 +64,8 @@ fn config_file(file: String) -> Result<(), String> {
     }?;
     Config::from_file(path).map_err(|e| format!("Couldn't parse config file - '{}'", e))?;
     Ok(())
+}
+
+fn conf_from_matches(matches: &ArgMatches) -> Config {
+    Config::from_file(matches.value_of("CONFIG_FILE").unwrap()).unwrap()
 }
