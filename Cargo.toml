@@ -1,0 +1,17 @@
+[package]
+name = "cepler"
+version = "0.1.0-dev"
+authors = ["Justin Carter <justin@misthos.io>"]
+edition = "2018"
+license = "MIT"
+repository = "https://github.com/bodymindarts/cepler"
+description = "Concourse Environment Propagator"
+
+[features]
+
+fail-on-warnings = []
+
+[dependencies]
+clap = "2.33"
+env_logger="0.7"
+log = "0.4"

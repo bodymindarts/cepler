@@ -1,0 +1,16 @@
+resource env_a_env_b_input
+
+environments:
+  testflight:
+    head_files:
+    - bla
+    - blu
+    - testflight
+
+  staging:
+    pull_from: testflight
+    propagated_files:
+    - bla
+    - blu
+    head_files:
+    - staging
