@@ -7,9 +7,6 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") {config_file} "Cepler config file")
-        (@subcommand workspace =>
-            (about: "Prepare workspace")
-        )
         (@subcommand hook =>
             (about: "Execute the hook")
         )
@@ -21,14 +18,9 @@ fn app() -> App<'static, 'static> {
 pub fn run() {
     let matches = app().get_matches();
     match matches.subcommand() {
-        ("workspace", Some(matches)) => workspace(matches),
         ("hook", Some(_)) => hook(matches.value_of("CONFIG_FILE").unwrap()),
         _ => unreachable!(),
     }
-}
-
-fn workspace(_matches: &ArgMatches) {
-    println!("Workspace")
 }
 
 fn hook(conf_file: &str) {
