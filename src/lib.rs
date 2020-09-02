@@ -3,5 +3,7 @@
 
 mod config;
 mod database;
+mod git;
+mod workspace;
 
 pub mod cli;

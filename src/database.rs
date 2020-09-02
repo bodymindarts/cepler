@@ -1,5 +1,4 @@
-use super::config::*;
-use git2::{ObjectType, Oid, Repository, Status};
+use super::{config::*, git::*};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -32,20 +31,21 @@ impl Database {
     }
 
     pub fn record_env(&mut self, env: &EnvironmentConfig) -> Result<(), DatabaseError> {
-        let mut env_state = EnvironmentState::default();
-        let repo = Repository::open_from_env()?;
-        for file in env.files() {
-            let dirty = !repo.status_file(file.as_path())?.is_empty();
+        let repo = Repo::open()?;
+        let commit_hash = repo.head_commit_hash()?;
+        let mut env_state = EnvironmentState::new(commit_hash);
+
+        let mut any_dirty = false;
+        for file in env.all_files() {
+            let dirty = repo.is_file_dirty(&file)?;
+            any_dirty = any_dirty || dirty;
             let file_name = file.to_str().unwrap().to_string();
-            let file_hash = Oid::hash_file(ObjectType::Blob, file)
-                .expect("Couldn't hash object")
-                .to_string();
+            let file_hash = hash_file(file);
             env_state
                 .files
                 .insert(file_name, FileState { file_hash, dirty });
         }
-        let commit_hash = repo.head()?.peel_to_commit()?.id().to_string();
-        env_state.commit_hash = commit_hash;
+        env_state.any_dirty = any_dirty;
         self.state.environments.insert(env.name.clone(), env_state);
         self.persist()
     }
@@ -56,18 +56,17 @@ impl Database {
         file.write_all(&serde_yaml::to_vec(&self.state)?)?;
         Ok(())
     }
+
+    pub fn environment(&self, env: &String) -> Option<&EnvironmentState> {
+        self.state.environments.get(env)
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct DbState {
     environments: HashMap<String, EnvironmentState>,
 }
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct EnvironmentState {
-    commit_hash: String,
-    #[serde(default)]
-    files: HashMap<String, FileState>,
-}
+
 impl DbState {
     fn from_reader(reader: impl Read) -> Result<Self, DatabaseError> {
         let state = serde_yaml::from_reader(reader)?;
@@ -75,9 +74,29 @@ impl DbState {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct FileState {
-    file_hash: String,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnvironmentState {
+    pub commit_hash: CommitHash,
+    #[serde(skip_serializing_if = "is_false")]
+    #[serde(default)]
+    any_dirty: bool,
+    #[serde(default)]
+    pub files: HashMap<String, FileState>,
+}
+
+impl EnvironmentState {
+    fn new(commit_hash: CommitHash) -> Self {
+        Self {
+            commit_hash,
+            any_dirty: false,
+            files: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileState {
+    file_hash: FileHash,
     #[serde(skip_serializing_if = "is_false")]
     #[serde(default)]
     dirty: bool,
