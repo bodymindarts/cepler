@@ -1,0 +1,13 @@
+input states
+
+laest_state_of_last_env
+latest_state_of_current_env
+head
+
+deploy staging : make deploy
+
+cd latest_state_of_current_env
+make deploy
+
+cd head
+make deploy

@@ -1,11 +1,13 @@
-resource env_a_env_b_input
+(Concourse Enviroment Propagate)-ler
+
+cepler.yml
+---
+hook: ((task def))
 
 environments:
   testflight:
     head_files:
-    - bla
-    - blu
-    - testflight
+    - **/*
 
   staging:
     pull_from: testflight
