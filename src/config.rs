@@ -6,9 +6,10 @@ use std::{
     path::Path,
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    environments: HashMap<String, Environment>,
+    pub environments: HashMap<String, EnvironmentConf>,
+    pub hook: HookConf,
 }
 
 impl Config {
@@ -28,10 +29,18 @@ impl Config {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Environment {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HookConf {
+    pub cmd: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnvironmentConf {
     #[serde(default)]
     name: String,
+    #[serde(default)]
     head_files: Vec<String>,
 }
 
@@ -42,10 +51,13 @@ mod test {
 
     #[test]
     fn deserialize_config() {
-        let conf = "environments:
+        let conf = r#"environments:
   testflight:
     head_files:
-    - file.yml";
+    - file.yml
+hook:
+  cmd: "ls""#;
+
         let conf = Config::from_reader(StringReader::new(conf)).unwrap();
         assert!(&conf.environments.get("testflight").unwrap().name == "testflight");
         assert!(
