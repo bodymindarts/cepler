@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FileHash(String);
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct CommitHash(String);
 
@@ -71,7 +71,7 @@ impl Repo {
 
     pub fn checkout_file_from<'a>(
         &self,
-        paths: impl IntoIterator<Item = &'a String>,
+        path: &str,
         commit: &CommitHash,
     ) -> Result<(), git2::Error> {
         let object = self.inner.find_object(
@@ -80,9 +80,7 @@ impl Repo {
         )?;
         let mut checkout = CheckoutBuilder::new();
         checkout.force();
-        for path in paths {
-            checkout.path(path);
-        }
+        checkout.path(path);
         self.inner.checkout_tree(&object, Some(&mut checkout))?;
 
         Ok(())

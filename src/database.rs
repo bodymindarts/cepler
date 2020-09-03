@@ -91,6 +91,9 @@ pub struct FileState {
     #[serde(skip_serializing_if = "is_false")]
     #[serde(default)]
     pub dirty: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub from_commit: Option<CommitHash>,
 }
 
 fn is_false(b: &bool) -> bool {
