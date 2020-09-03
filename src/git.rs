@@ -1,4 +1,5 @@
 use git2::{build::CheckoutBuilder, ObjectType, Oid, Repository};
+use glob::*;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -26,6 +27,36 @@ impl Repo {
         Ok(Self {
             inner: Repository::open_from_env()?,
         })
+    }
+
+    pub fn head_files(&self, filters: &[String]) -> impl Iterator<Item = PathBuf> + '_ {
+        let mut opts = MatchOptions::new();
+        opts.require_literal_leading_dot = true;
+        let files: Vec<_> = filters
+            .iter()
+            .map(move |files| glob_with(&files, opts).expect("Couldn't resolve glob"))
+            .flatten()
+            .map(|res| res.expect("Couldn't list file"))
+            .collect();
+        let repo = Self::open().expect("Couldn't re-open repo");
+        files.into_iter().filter_map(move |file| {
+            if repo.is_trackable_file(&file) {
+                Some(file)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn is_trackable_file(&self, file: &PathBuf) -> bool {
+        let path = file.as_path();
+        if self.inner.status_file(path).is_err() {
+            return false;
+        }
+        !self
+            .inner
+            .status_should_ignore(path)
+            .expect("Cannot check ignore status")
     }
 
     pub fn is_file_dirty(&self, file: &PathBuf) -> Result<bool, git2::Error> {

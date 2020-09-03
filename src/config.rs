@@ -78,13 +78,8 @@ impl EnvironmentConfig {
             .map(|res| res.expect("Couldn't list file"))
     }
 
-    pub fn head_files(&self) -> impl Iterator<Item = PathBuf> {
-        let files: Vec<_> = self.head_files.to_vec();
-        files
-            .into_iter()
-            .map(|file| glob(&file).expect("Couldn't resolve glob"))
-            .flatten()
-            .map(|res| res.expect("Couldn't list file"))
+    pub fn head_filters(&self) -> &[String] {
+        &self.head_files
     }
 }
 

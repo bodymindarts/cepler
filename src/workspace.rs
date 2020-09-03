@@ -36,7 +36,7 @@ impl Workspace {
         let head_commit = repo.head_commit_hash()?;
         let mut new_env_state = EnvironmentState::new(head_commit);
 
-        for file in env.head_files() {
+        for file in repo.head_files(env.head_filters()) {
             let dirty = repo.is_file_dirty(&file)?;
             let file_name = file.to_str().unwrap().to_string();
             let file_hash = hash_file(file);
@@ -71,7 +71,7 @@ impl Workspace {
 pub enum WorkspaceError {
     #[error("{0}")]
     DbError(#[from] DatabaseError),
-    #[error("Error interfacing with git: '{0}'")]
+    #[error("Error interfacing with git - {0}")]
     GitError(String),
 }
 
