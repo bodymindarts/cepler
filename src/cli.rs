@@ -1,4 +1,4 @@
-use super::{config::Config, database::Database, workspace::Workspace};
+use super::{config::Config, workspace::Workspace};
 use clap::{clap_app, crate_version, App, ArgMatches};
 
 fn app() -> App<'static, 'static> {

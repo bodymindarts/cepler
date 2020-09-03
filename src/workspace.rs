@@ -33,6 +33,15 @@ impl Workspace {
     }
 
     pub fn record_env(&mut self, env: &EnvironmentConfig) -> Result<(), WorkspaceError> {
+        let new_env_state = self.construct_env_state(env)?;
+        Ok(self
+            .db
+            .set_current_environment_state(env.name.clone(), new_env_state)?)
+    }
+    fn construct_env_state(
+        &self,
+        env: &EnvironmentConfig,
+    ) -> Result<EnvironmentState, WorkspaceError> {
         let repo = Repo::open()?;
         let head_commit = repo.head_commit_hash()?;
         let mut new_env_state = EnvironmentState::new(head_commit);
@@ -73,10 +82,7 @@ impl Workspace {
                 }
             }
         }
-
-        Ok(self
-            .db
-            .set_environment_state(env.name.clone(), new_env_state)?)
+        Ok(new_env_state)
     }
 }
 

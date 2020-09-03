@@ -30,7 +30,7 @@ impl Database {
         })
     }
 
-    pub fn set_environment_state(
+    pub fn set_current_environment_state(
         &mut self,
         name: String,
         mut env: EnvironmentState,
