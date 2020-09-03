@@ -1,7 +1,7 @@
-use super::{config::*, git::*};
+use super::git::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fs::File,
     io::{BufReader, Read},
     path::Path,
@@ -30,23 +30,14 @@ impl Database {
         })
     }
 
-    pub fn record_env(&mut self, env: &EnvironmentConfig) -> Result<(), DatabaseError> {
-        let repo = Repo::open()?;
-        let head_commit = repo.head_commit_hash()?;
-        let mut env_state = EnvironmentState::new(head_commit);
-
-        let mut any_dirty = false;
-        for file in env.all_files() {
-            let dirty = repo.is_file_dirty(&file)?;
-            any_dirty = any_dirty || dirty;
-            let file_name = file.to_str().unwrap().to_string();
-            let file_hash = hash_file(file);
-            env_state
-                .files
-                .insert(file_name, FileState { file_hash, dirty });
-        }
-        env_state.any_dirty = any_dirty;
-        self.state.environments.insert(env.name.clone(), env_state);
+    pub fn set_environment_state(
+        &mut self,
+        name: String,
+        mut env: EnvironmentState,
+    ) -> Result<(), DatabaseError> {
+        let any_dirty = env.files.values().any(|f| f.dirty);
+        env.any_dirty = any_dirty;
+        self.state.environments.insert(name, env);
         self.persist()
     }
 
@@ -64,7 +55,7 @@ impl Database {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct DbState {
-    environments: HashMap<String, EnvironmentState>,
+    environments: BTreeMap<String, EnvironmentState>,
 }
 
 impl DbState {
@@ -81,25 +72,25 @@ pub struct EnvironmentState {
     #[serde(default)]
     any_dirty: bool,
     #[serde(default)]
-    pub files: HashMap<String, FileState>,
+    pub files: BTreeMap<String, FileState>,
 }
 
 impl EnvironmentState {
-    fn new(head_commit: CommitHash) -> Self {
+    pub fn new(head_commit: CommitHash) -> Self {
         Self {
             head_commit,
             any_dirty: false,
-            files: HashMap::new(),
+            files: BTreeMap::new(),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileState {
-    file_hash: FileHash,
+    pub file_hash: FileHash,
     #[serde(skip_serializing_if = "is_false")]
     #[serde(default)]
-    dirty: bool,
+    pub dirty: bool,
 }
 
 fn is_false(b: &bool) -> bool {

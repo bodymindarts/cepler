@@ -69,13 +69,17 @@ impl EnvironmentConfig {
             .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
     }
 
-    pub fn all_files(&self) -> impl Iterator<Item = PathBuf> {
-        let files: Vec<_> = self
-            .head_files
-            .iter()
-            .chain(self.propagated_files.iter())
-            .cloned()
-            .collect();
+    pub fn propagated_files(&self) -> impl Iterator<Item = PathBuf> {
+        let files: Vec<_> = self.propagated_files.to_vec();
+        files
+            .into_iter()
+            .map(|file| glob(&file).expect("Couldn't resolve glob"))
+            .flatten()
+            .map(|res| res.expect("Couldn't list file"))
+    }
+
+    pub fn head_files(&self) -> impl Iterator<Item = PathBuf> {
+        let files: Vec<_> = self.head_files.to_vec();
         files
             .into_iter()
             .map(|file| glob(&file).expect("Couldn't resolve glob"))

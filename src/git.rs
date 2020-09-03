@@ -48,11 +48,18 @@ impl Repo {
             Some(ObjectType::Commit),
         )?;
         let mut checkout = CheckoutBuilder::new();
+        checkout.force();
         for path in paths {
             checkout.path(path);
         }
         self.inner.checkout_tree(&object, Some(&mut checkout))?;
 
         Ok(())
+    }
+
+    pub fn checkout_head(&self) -> Result<(), git2::Error> {
+        let mut checkout = CheckoutBuilder::new();
+        checkout.force();
+        Ok(self.inner.checkout_head(Some(&mut checkout))?)
     }
 }

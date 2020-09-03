@@ -61,9 +61,9 @@ fn hook(conf: Config) {
 fn record(matches: &ArgMatches, state_file: String, config: Config) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     if let Some(env) = config.environments.get(env) {
-        match Database::open(state_file) {
-            Ok(mut db) => {
-                if let Err(e) = db.record_env(env) {
+        match Workspace::new(state_file) {
+            Ok(mut ws) => {
+                if let Err(e) = ws.record_env(env) {
                     println!("{}", e);
                 }
             }
@@ -81,9 +81,8 @@ fn record(matches: &ArgMatches, state_file: String, config: Config) {
 fn prepare(matches: &ArgMatches, state_file: String, config: Config) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     if let Some(env) = config.environments.get(env) {
-        match Database::open(state_file) {
-            Ok(db) => {
-                let ws = Workspace::new(db);
+        match Workspace::new(state_file) {
+            Ok(ws) => {
                 if let Err(e) = ws.prepare(env) {
                     println!("{}", e);
                 }
