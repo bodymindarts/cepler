@@ -59,7 +59,7 @@ impl Workspace {
         }
 
         if let Some(previous_env) = env.propagated_from() {
-            if let Some(env_state) = self.db.current_environment_state(previous_env) {
+            if let Some(env_state) = self.db.get_target_propagated_state(&env.name, previous_env) {
                 new_env_state.propagated_head = Some(env_state.head_commit.clone());
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (name, prev_state) in env_state.files.iter() {
