@@ -32,8 +32,8 @@ impl Database {
 
     pub fn record_env(&mut self, env: &EnvironmentConfig) -> Result<(), DatabaseError> {
         let repo = Repo::open()?;
-        let commit_hash = repo.head_commit_hash()?;
-        let mut env_state = EnvironmentState::new(commit_hash);
+        let head_commit = repo.head_commit_hash()?;
+        let mut env_state = EnvironmentState::new(head_commit);
 
         let mut any_dirty = false;
         for file in env.all_files() {
@@ -76,7 +76,7 @@ impl DbState {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnvironmentState {
-    pub commit_hash: CommitHash,
+    pub head_commit: CommitHash,
     #[serde(skip_serializing_if = "is_false")]
     #[serde(default)]
     any_dirty: bool,
@@ -85,9 +85,9 @@ pub struct EnvironmentState {
 }
 
 impl EnvironmentState {
-    fn new(commit_hash: CommitHash) -> Self {
+    fn new(head_commit: CommitHash) -> Self {
         Self {
-            commit_hash,
+            head_commit,
             any_dirty: false,
             files: HashMap::new(),
         }

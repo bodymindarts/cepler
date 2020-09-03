@@ -19,7 +19,7 @@ impl Workspace {
                         files_to_checkout.push(name)
                     }
                 }
-                repo.checkout_file_from(files_to_checkout, &env_state.commit_hash)?;
+                repo.checkout_file_from(files_to_checkout, &env_state.head_commit)?;
             }
         }
         Ok(())
