@@ -114,6 +114,8 @@ impl DbState {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnvironmentState {
     current: DeployState,
+    #[serde(skip_serializing_if = "VecDeque::is_empty")]
+    #[serde(default)]
     history: VecDeque<DeployState>,
 }
 
