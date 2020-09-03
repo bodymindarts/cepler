@@ -17,7 +17,7 @@ impl Workspace {
             std::fs::remove_file(file).expect("Couldn't remove file");
         }
         if let Some(previous_env) = env.propagated_from() {
-            if let Some(env_state) = self.db.environment(previous_env) {
+            if let Some(env_state) = self.db.get_target_propagated_state(&env.name, previous_env) {
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (name, state) in env_state.files.iter() {
                     if patterns.iter().any(|p| p.matches(&name)) {
@@ -38,13 +38,11 @@ impl Workspace {
             .db
             .set_current_environment_state(env.name.clone(), new_env_state)?)
     }
-    fn construct_env_state(
-        &self,
-        env: &EnvironmentConfig,
-    ) -> Result<EnvironmentState, WorkspaceError> {
+
+    fn construct_env_state(&self, env: &EnvironmentConfig) -> Result<DeployState, WorkspaceError> {
         let repo = Repo::open()?;
         let head_commit = repo.head_commit_hash()?;
-        let mut new_env_state = EnvironmentState::new(head_commit);
+        let mut new_env_state = DeployState::new(head_commit);
 
         for file in repo.head_files(env.head_filters()) {
             let dirty = repo.is_file_dirty(&file)?;
@@ -61,7 +59,8 @@ impl Workspace {
         }
 
         if let Some(previous_env) = env.propagated_from() {
-            if let Some(env_state) = self.db.environment(previous_env) {
+            if let Some(env_state) = self.db.current_environment_state(previous_env) {
+                new_env_state.propagated_head = Some(env_state.head_commit.clone());
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (name, prev_state) in env_state.files.iter() {
                     if patterns.iter().any(|p| p.matches(&name)) {
@@ -82,6 +81,7 @@ impl Workspace {
                 }
             }
         }
+
         Ok(new_env_state)
     }
 }

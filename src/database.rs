@@ -1,7 +1,7 @@
 use super::git::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     fs::File,
     io::{BufReader, Read},
     path::Path,
@@ -33,11 +33,22 @@ impl Database {
     pub fn set_current_environment_state(
         &mut self,
         name: String,
-        mut env: EnvironmentState,
+        mut env: DeployState,
     ) -> Result<(), DatabaseError> {
         let any_dirty = env.files.values().any(|f| f.dirty);
         env.any_dirty = any_dirty;
-        self.state.environments.insert(name, env);
+        if let Some(state) = self.state.environments.get_mut(&name) {
+            std::mem::swap(&mut state.current, &mut env);
+            state.history.push_front(env);
+        } else {
+            self.state.environments.insert(
+                name,
+                EnvironmentState {
+                    current: env,
+                    history: VecDeque::new(),
+                },
+            );
+        }
         self.persist()
     }
 
@@ -48,8 +59,43 @@ impl Database {
         Ok(())
     }
 
-    pub fn environment(&self, env: &String) -> Option<&EnvironmentState> {
-        self.state.environments.get(env)
+    pub fn current_environment_state(&self, env: &String) -> Option<&DeployState> {
+        self.state.environments.get(env).map(|env| &env.current)
+    }
+
+    pub fn get_target_propagated_state(
+        &self,
+        env: &String,
+        propagated_from: &String,
+    ) -> Option<&DeployState> {
+        match (
+            self.state.environments.get(env),
+            self.state.environments.get(propagated_from),
+        ) {
+            (Some(env), Some(from)) => {
+                if let Some(from_head) = env.current.propagated_head.as_ref() {
+                    if from_head == &from.current.head_commit {
+                        Some(&from.current)
+                    } else {
+                        let (last_idx, _) = from
+                            .history
+                            .iter()
+                            .enumerate()
+                            .find(|(_, state)| &state.head_commit == from_head)
+                            .expect("Couldn't find state in history");
+                        if last_idx >= 1 {
+                            Some(&from.history[last_idx - 1])
+                        } else {
+                            Some(&from.current)
+                        }
+                    }
+                } else {
+                    Some(&from.current)
+                }
+            }
+            (None, Some(state)) => Some(&state.current),
+            _ => None,
+        }
     }
 }
 
@@ -67,7 +113,15 @@ impl DbState {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnvironmentState {
+    current: DeployState,
+    history: VecDeque<DeployState>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeployState {
     pub head_commit: CommitHash,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub propagated_head: Option<CommitHash>,
     #[serde(skip_serializing_if = "is_false")]
     #[serde(default)]
     any_dirty: bool,
@@ -75,10 +129,11 @@ pub struct EnvironmentState {
     pub files: BTreeMap<String, FileState>,
 }
 
-impl EnvironmentState {
+impl DeployState {
     pub fn new(head_commit: CommitHash) -> Self {
         Self {
             head_commit,
+            propagated_head: None,
             any_dirty: false,
             files: BTreeMap::new(),
         }
