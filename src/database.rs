@@ -59,10 +59,6 @@ impl Database {
         Ok(())
     }
 
-    pub fn current_environment_state(&self, env: &String) -> Option<&DeployState> {
-        self.state.environments.get(env).map(|env| &env.current)
-    }
-
     pub fn get_target_propagated_state(
         &self,
         env: &String,
