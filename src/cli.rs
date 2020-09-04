@@ -56,7 +56,7 @@ fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
         .context(format!("Environment '{}' not found in config", env))?;
     println!("Checking wether environment '{}' needs deploying", env.name);
     ws.check(env)?;
-    println!("Last recorded state differs from current");
+    println!("Good to go... last recorded state differs from current");
     Ok(())
 }
 fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {

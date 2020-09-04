@@ -16,7 +16,7 @@ pub struct Config {
 
 impl Config {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file = File::open(path)?;
+        let file = File::open(path).context("Couldn't open config file")?;
         let reader = BufReader::new(file);
 
         Self::from_reader(reader)
