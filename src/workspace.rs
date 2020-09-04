@@ -6,7 +6,7 @@ pub struct Workspace {
     db: Database,
 }
 impl Workspace {
-    pub fn new(path_to_config: String, path_to_state: String) -> Result<Self, WorkspaceError> {
+    pub fn new(path_to_state: String, path_to_config: String) -> Result<Self, WorkspaceError> {
         Ok(Self {
             db: Database::open(path_to_state)?,
             path_to_config,
