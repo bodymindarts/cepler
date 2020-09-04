@@ -14,8 +14,8 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn open(file: String) -> Result<Self, DatabaseError> {
-        let path = Path::new(&file);
+    pub fn open(file: &str) -> Result<Self, DatabaseError> {
+        let path = Path::new(file);
         let state = if path.exists() {
             let file = File::open(path)?;
             let reader = BufReader::new(file);
@@ -26,7 +26,7 @@ impl Database {
         };
         Ok(Self {
             state,
-            state_file: file,
+            state_file: file.to_string(),
         })
     }
 

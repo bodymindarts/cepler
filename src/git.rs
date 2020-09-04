@@ -89,7 +89,11 @@ impl Repo {
         Ok(())
     }
 
-    pub fn checkout_head(&self, filters: Option<&[String]>) -> Result<(), git2::Error> {
+    pub fn checkout_head(
+        &self,
+        filters: Option<&[String]>,
+        ignore_files: Vec<&str>,
+    ) -> Result<(), git2::Error> {
         let mut checkout = CheckoutBuilder::new();
         self.inner.reset(
             self.head_commit().as_object(),
@@ -97,15 +101,19 @@ impl Repo {
             Some(&mut checkout),
         )?;
         if let Some(filters) = filters {
+            let mut ignore_os_files: HashSet<_> = ignore_files.iter().map(OsStr::new).collect();
+            ignore_os_files.insert(OsStr::new(".git"));
+
             let mut checkout = CheckoutBuilder::new();
             checkout.force();
             for path in self.head_files(filters) {
                 checkout.path(path);
             }
+
             for path in glob("*").expect("List all files") {
                 let path = path.expect("Get file");
                 if let Some(name) = path.file_name() {
-                    if name != OsStr::new(".git") {
+                    if !ignore_os_files.contains(name) {
                         if path.as_path().is_dir() {
                             std::fs::remove_dir_all(path).expect("Couldn't remove file");
                         } else {
