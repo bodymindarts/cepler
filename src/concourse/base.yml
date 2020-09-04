@@ -12,6 +12,7 @@ resources:
     uri: {{repo_uri}}
     branch: {{branch}}
     private_key: {{github_private_key}}
+
 - name: propagator
   type: git
   source:
