@@ -1,5 +1,5 @@
 use cepler::cli;
 
-fn main() {
-    cli::run();
+fn main() -> Result<(), anyhow::Error> {
+    cli::run()
 }

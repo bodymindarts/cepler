@@ -1,4 +1,5 @@
 use super::{concourse::Concourse, config::Config, git::Repo, workspace::Workspace};
+use anyhow::*;
 use clap::{clap_app, crate_version, App, ArgMatches};
 
 fn app() -> App<'static, 'static> {
@@ -26,48 +27,38 @@ fn app() -> App<'static, 'static> {
     app
 }
 
-pub fn run() {
+pub fn run() -> Result<()> {
     let matches = app().get_matches();
     match matches.subcommand() {
-        ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)),
-        ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)),
-        ("concourse", Some(_)) => concourse(conf_from_matches(&matches)),
+        ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
+        ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
+        ("concourse", Some(_)) => concourse(conf_from_matches(&matches)?),
         _ => unreachable!(),
     }
 }
 
-fn concourse((conf, _): (Config, String)) {
+fn concourse((conf, _): (Config, String)) -> Result<()> {
     if conf.concourse.is_none() {
-        eprintln!("concourse: key not specified");
-        std::process::exit(1);
+        anyhow!("concourse: key not specified");
     }
-    println!("{}", Concourse::new(conf).render_pipeline())
+    println!("{}", Concourse::new(conf).render_pipeline());
+    Ok(())
 }
 
-fn record(matches: &ArgMatches, config: (Config, String)) {
+fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let commit: bool = !matches.is_present("NO_COMMIT");
-    if let Some(env) = config.0.environments.get(env) {
-        match Workspace::new(config.1) {
-            Ok(mut ws) => {
-                if let Err(e) = ws.record_env(env, commit) {
-                    println!("{}", e);
-                } else {
-                    println!("State of '{}' recorded", env.name);
-                }
-            }
-            Err(e) => {
-                println!("{}", e);
-                std::process::exit(1);
-            }
-        }
-    } else {
-        eprintln!("Couldn't find environment '{}' in cepler.yml", env);
-        std::process::exit(1);
-    }
+    let env = config
+        .0
+        .environments
+        .get(env)
+        .context(format!("Environment '{}' not found in config", env))?;
+    let mut ws = Workspace::new(config.1)?;
+    ws.record_env(env, commit)?;
+    Ok(())
 }
 
-fn prepare(matches: &ArgMatches, config: (Config, String)) {
+fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     if let Some(dir) = matches.value_of("CLONE_DIR") {
         if Repo::clone(&dir).is_err() {
@@ -80,24 +71,14 @@ fn prepare(matches: &ArgMatches, config: (Config, String)) {
     if force_clean {
         println!("WARNING removing all non-cepler specified files");
     }
-    if let Some(env) = config.0.environments.get(env) {
-        match Workspace::new(config.1) {
-            Ok(ws) => {
-                if let Err(e) = ws.prepare(env, force_clean) {
-                    println!("{}", e);
-                } else {
-                    println!("Workspace prepared to deploy '{}'", env.name);
-                }
-            }
-            Err(e) => {
-                println!("{}", e);
-                std::process::exit(1);
-            }
-        }
-    } else {
-        eprintln!("Couldn't find environment '{}' in cepler.yml", env);
-        std::process::exit(1);
-    }
+    let env = config
+        .0
+        .environments
+        .get(env)
+        .context(format!("Environment '{}' not found in config", env))?;
+    let ws = Workspace::new(config.1)?;
+    ws.prepare(env, force_clean)?;
+    Ok(())
 }
 
 fn config_file(file: String) -> Result<(), String> {
@@ -112,7 +93,7 @@ fn config_file(file: String) -> Result<(), String> {
     Ok(())
 }
 
-fn conf_from_matches(matches: &ArgMatches) -> (Config, String) {
+fn conf_from_matches(matches: &ArgMatches) -> Result<(Config, String)> {
     let file_name = matches.value_of("CONFIG_FILE").unwrap();
-    (Config::from_file(file_name).unwrap(), file_name.to_string())
+    Ok((Config::from_file(file_name)?, file_name.to_string()))
 }

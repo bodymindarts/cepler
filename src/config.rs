@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::*;
 use glob::*;
 use serde::Deserialize;
 use std::{
@@ -15,14 +15,14 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, anyhow::Error> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
 
         Self::from_reader(reader)
     }
 
-    fn from_reader(reader: impl Read) -> Result<Self, anyhow::Error> {
+    fn from_reader(reader: impl Read) -> Result<Self> {
         let mut config: Config = serde_yaml::from_reader(reader)?;
         let all_environments: HashSet<String> = config.environments.keys().cloned().collect();
         for (name, mut env) in config.environments.iter_mut() {
