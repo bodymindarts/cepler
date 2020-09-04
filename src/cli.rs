@@ -44,8 +44,15 @@ pub fn run() -> Result<()> {
 fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     if let Some(dir) = matches.value_of("CLONE_DIR") {
-        Repo::clone(&dir)?;
-        std::env::set_current_dir(dir)?;
+        use std::path::Path;
+        let path = Path::new(&dir);
+        if !path.exists() {
+            Repo::clone(path)?;
+            std::env::set_current_dir(dir)?;
+        } else {
+            std::env::set_current_dir(dir)?;
+            Repo::open()?.pull()?;
+        }
     }
     let config = conf_from_matches(main_matches)?;
     let ws = Workspace::new(config.1)?;

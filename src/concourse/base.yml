@@ -3,6 +3,12 @@ jobs:
 {{> job this }}
 {{/each ~}}
 resources:
-{{#each resources ~}}
-{{> resource this }}
+{{#each cepler_resources ~}}
+{{> cepler_resource this }}
 {{/each ~}}
+resource_types:
+- name: cepler
+  type: registry-image
+  source:
+    repository: bodymindarts/cepler
+    tag: latest

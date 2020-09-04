@@ -1,11 +1,7 @@
 - name: {{name}}
-  type: git
+  type: cepler
   source:
     uri: {{repo_uri}}
-{{~#if paths}}
-    paths:
-{{~#each paths}}
-    - {{this}}
-{{~/each}}{{~/if}}
     branch: {{branch}}
     private_key: {{git_private_key}}
+    environment: {{name}}

@@ -35,31 +35,36 @@ const GIT_BRANCH: &str = "GIT_BRANCH";
 const GIT_PRIVATE_KEY: &str = "GIT_PRIVATE_KEY";
 
 impl Repo {
-    pub fn clone(dir: &str) -> Result<()> {
-        use std::env;
-        let (url, key) = match (env::var(GIT_URL), env::var(GIT_PRIVATE_KEY)) {
-            (Ok(url), Ok(key)) => (url, key),
-            _ => {
-                return Err(anyhow!(
-                    "Vars '{}' and '{}' must be set in order to clone",
-                    GIT_URL,
-                    GIT_PRIVATE_KEY
-                ));
-            }
-        };
-        let branch = env::var(GIT_BRANCH).unwrap_or_else(|_| "main".to_string());
-        println!("Cloning into {}", dir);
-        let mut callbacks = RemoteCallbacks::new();
-        callbacks.credentials(|_url, username_from_url, _allowed_types| {
-            Cred::ssh_key_from_memory(username_from_url.unwrap(), None, &key, None)
-        });
+    pub fn pull(&self) -> Result<()> {
+        let (_, callbacks) = remote_callbacks()?;
+        let branch = std::env::var(GIT_BRANCH).unwrap_or_else(|_| "main".to_string());
+        let mut fo = git2::FetchOptions::new();
+        fo.remote_callbacks(callbacks);
+        let mut remote = self.inner.find_remote("origin")?;
+        remote.fetch(&[branch.clone()], Some(&mut fo), None)?;
+        let suffix = format!("/{}", branch);
+        let remote_head = remote
+            .list()?
+            .iter()
+            .find(|head| head.name().ends_with(&suffix))
+            .context("Cannot find head")?;
+        let object = self
+            .inner
+            .find_object(remote_head.oid(), Some(ObjectType::Commit))?;
+        self.inner.reset(&object, ResetType::Hard, None)?;
+        Ok(())
+    }
+
+    pub fn clone(dir: &Path) -> Result<()> {
+        let (url, callbacks) = remote_callbacks()?;
+        let branch = std::env::var(GIT_BRANCH).unwrap_or_else(|_| "main".to_string());
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
 
         let mut builder = git2::build::RepoBuilder::new();
         builder.fetch_options(fo);
         builder.branch(&branch);
-        builder.clone(&url, Path::new(dir))?;
+        builder.clone(&url, dir)?;
         Ok(())
     }
 
@@ -223,4 +228,23 @@ impl Repo {
     fn head_oid(&self) -> Oid {
         self.inner.head().unwrap().peel_to_commit().unwrap().id()
     }
+}
+
+fn remote_callbacks() -> Result<(String, RemoteCallbacks<'static>)> {
+    use std::env;
+    let (url, key) = match (env::var(GIT_URL), env::var(GIT_PRIVATE_KEY)) {
+        (Ok(url), Ok(key)) => (url, key),
+        _ => {
+            return Err(anyhow!(
+                "Vars '{}' and '{}' must be set in order to clone",
+                GIT_URL,
+                GIT_PRIVATE_KEY
+            ));
+        }
+    };
+    let mut callbacks = RemoteCallbacks::new();
+    callbacks.credentials(move |_url, username_from_url, _allowed_types| {
+        Cred::ssh_key_from_memory(username_from_url.unwrap(), None, &key, None)
+    });
+    Ok((url, callbacks))
 }

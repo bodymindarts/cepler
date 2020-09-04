@@ -1,31 +1,48 @@
 #!/bin/bash
 
+set -e
+set -x
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+export TMPDIR=${TMPDIR:-/tmp}
+payload=$TMPDIR/cepler-resource-request
+
 cat > $payload <&0
 
-export GIT_URI=$(jq -r '.source.uri // ""' < $payload)
+export GIT_URL=$(jq -r '.source.uri // ""' < $payload)
 export GIT_BRANCH=$(jq -r '.source.branch // ""' < $payload)
+set +x
 export GIT_PRIVATE_KEY=$(jq -r '.source.private_key // ""' < $payload)
+set -x
 environment=$(jq -r '.source.environment // ""' < $payload)
+deployment_no=$(jq -r '.version.deployment_no // ""' < $payload)
 
-deployment_no=$(jq -r '.version.deployment_no')
+destination=$TMPDIR/cepler-resource-repo-cache
 
-clone_arg=""
-if [ -d /tmp/repo ] ; then
-  cd /tmp/repo
-  git pull
-else
-  clone_arg="--clone repo"
-fi
-
-next_deployment_no=$(cepler check -e ${environment} ${clone_arg})
+set +e
+next_deployment_no=$(cepler check -e ${environment} --clone ${destination})
+set -e
 
 res=$?
-if [[ $res != 0 ]]; then
-  if [[ $res == 1 ]]; then
-    echo "[ ]"
+
+{
+  if [[ $res != 0 ]]; then
+    if [[ $res == 1 ]]; then
+      echo "[]"
+    else
+      if [[ "${deployment_no}" != "" ]]; then
+        echo "[ { \"deployment_no\": \"${deployment_no}\" } ]"
+      else
+        echo "[]"
+      fi
+    fi
   else
-    echo "[ { \"deployment_no\": ${deployment_no} } ]"
+    if [[ "${deployment_no}" != "" ]]; then
+      echo "[ { \"deployment_no\": \"${deployment_no}\" }, { \"deployment_no\": \"${next_deployment_no}\" } ]"
+    else
+      echo "[ { \"deployment_no\": \"${next_deployment_no}\" } ]"
+    fi
   fi
-else
-  echo "[ { \"deployment_no\": ${deployment_no} }, { \"deployment_no\": ${next_deployment_no} } ]"
-fi
+} >&3
