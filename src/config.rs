@@ -11,7 +11,6 @@ use std::{
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub environments: HashMap<String, EnvironmentConfig>,
-    pub hook: HookConf,
     pub concourse: Option<ConcourseConfig>,
 }
 
@@ -37,13 +36,6 @@ impl Config {
 
         Ok(config)
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct HookConf {
-    pub cmd: String,
-    #[serde(default)]
-    pub args: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

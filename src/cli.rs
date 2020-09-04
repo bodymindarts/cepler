@@ -17,9 +17,6 @@ fn app() -> App<'static, 'static> {
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
             (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
         )
-        (@subcommand hook =>
-            (about: "Execute the hook")
-        )
         (@subcommand concourse =>
             (about: "Render a concourse pipeline")
         )
@@ -31,7 +28,6 @@ fn app() -> App<'static, 'static> {
 pub fn run() {
     let matches = app().get_matches();
     match matches.subcommand() {
-        ("hook", Some(_)) => hook(conf_from_matches(&matches)),
         ("record", Some(sub_matches)) => record(
             sub_matches,
             matches.value_of("STATE_FILE").unwrap().to_string(),
@@ -44,22 +40,6 @@ pub fn run() {
         ),
         ("concourse", Some(_)) => concourse(conf_from_matches(&matches)),
         _ => unreachable!(),
-    }
-}
-
-fn hook(conf: Config) {
-    use std::process::{Command, Stdio};
-    println!("Executing hook: '{}'", conf.hook.cmd);
-    let mut cmd = Command::new(conf.hook.cmd)
-        .args(&conf.hook.args)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap();
-    let status = cmd.wait().expect("Failed to run hook");
-    match status.code() {
-        Some(code) => println!("Exited with status code: '{}'", code),
-        None => println!("Process terminated by signal"),
     }
 }
 
