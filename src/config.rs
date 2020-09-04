@@ -79,10 +79,6 @@ impl EnvironmentConfig {
             .map(|res| res.expect("Couldn't list file"))
     }
 
-    pub fn propagated_filters(&self) -> &[String] {
-        &self.propagated_files
-    }
-
     pub fn head_filters(&self) -> &[String] {
         &self.head_files
     }

@@ -85,10 +85,6 @@ fn head_resource_name(env: &EnvironmentConfig) -> String {
     format!("{}-head", env.name)
 }
 
-fn propagated_resource_name(env: &EnvironmentConfig) -> String {
-    format!("{}-passed-{}", env.name, env.propagated_from().unwrap())
-}
-
 #[derive(Debug, Serialize)]
 struct ConcourseData<'a> {
     jobs: Vec<JobData<'a>>,
