@@ -23,9 +23,8 @@ destination=$TMPDIR/cepler-resource-repo-cache
 
 set +e
 next_deployment_no=$(cepler check -e ${environment} --clone ${destination})
-set -e
-
 res=$?
+set -e
 
 {
   if [[ $res != 0 ]]; then
