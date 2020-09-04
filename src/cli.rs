@@ -58,6 +58,8 @@ fn record(matches: &ArgMatches, state_file: String, config: (Config, String)) {
             Ok(mut ws) => {
                 if let Err(e) = ws.record_env(env) {
                     println!("{}", e);
+                } else {
+                    println!("State of '{}' recorded", env.name);
                 }
             }
             Err(e) => {
