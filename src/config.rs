@@ -79,6 +79,13 @@ impl EnvironmentConfig {
 #[derive(Debug, Deserialize)]
 pub struct ConcourseConfig {
     pub repo: RepoConfig,
+    pub task: TaskConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TaskConfig {
+    pub image_resource: serde_yaml::Value,
+    pub run: serde_yaml::Value,
 }
 
 #[derive(Debug, Deserialize)]

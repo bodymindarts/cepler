@@ -8,6 +8,8 @@ const RESOURCE_PARTIAL: &str = include_str!("resource.yml");
 const RESOURCE_PARTIAL_NAME: &str = "resource";
 const JOB_PARTIAL: &str = include_str!("job.yml");
 const JOB_PARTIAL_NAME: &str = "job";
+const USER_IMAGE_RESOURCE: &str = "user_image_resource";
+const USER_RUN: &str = "user_run";
 
 pub struct Concourse {
     handlebars: Handlebars<'static>,
@@ -22,6 +24,18 @@ impl Concourse {
             .unwrap();
         handlebars
             .register_partial(JOB_PARTIAL_NAME, JOB_PARTIAL)
+            .unwrap();
+        handlebars
+            .register_partial(
+                USER_IMAGE_RESOURCE,
+                &user_image_resource(&config.concourse.as_ref().unwrap().task.image_resource),
+            )
+            .unwrap();
+        handlebars
+            .register_partial(
+                USER_RUN,
+                &user_run(&config.concourse.as_ref().unwrap().task.run),
+            )
             .unwrap();
         handlebars
             .register_template_string(BASE_TEMPLATE_NAME, BASE_TEMPLATE)
@@ -83,6 +97,32 @@ impl Concourse {
 
 fn head_resource_name(env: &EnvironmentConfig) -> String {
     format!("{}-head", env.name)
+}
+fn user_image_resource(image: &serde_yaml::Value) -> String {
+    let mut res = String::new();
+    for line in serde_yaml::to_string(&image)
+        .expect("Couldn't serialize image")
+        .split("\n")
+        .skip(1)
+    {
+        res.push_str("        ");
+        res.push_str(line);
+        res.push_str("\n")
+    }
+    res.trim_end_matches("\n").to_string()
+}
+fn user_run(run: &serde_yaml::Value) -> String {
+    let mut res = String::new();
+    for line in serde_yaml::to_string(&run)
+        .expect("Couldn't serialize image")
+        .split("\n")
+        .skip(1)
+    {
+        res.push_str("        ");
+        res.push_str(line);
+        res.push_str("\n")
+    }
+    res.trim_end_matches("\n").to_string()
 }
 
 #[derive(Debug, Serialize)]
