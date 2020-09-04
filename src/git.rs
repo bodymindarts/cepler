@@ -1,3 +1,4 @@
+use anyhow::*;
 use git2::{
     build::CheckoutBuilder, Commit, Cred, ObjectType, Oid, RemoteCallbacks, Repository, ResetType,
     Signature,
@@ -34,16 +35,16 @@ const GIT_BRANCH_NAME: &str = "GIT_BRANCH";
 const GIT_PRIVATE_KEY: &str = "GIT_PRIVATE_KEY";
 
 impl Repo {
-    pub fn clone(dir: &str) -> Result<(), git2::Error> {
+    pub fn clone(dir: &str) -> Result<()> {
         use std::env;
         let (url, key) = match (env::var(GIT_URL_NAME), env::var(GIT_PRIVATE_KEY)) {
             (Ok(url), Ok(key)) => (url, key),
             _ => {
-                eprintln!(
+                return Err(anyhow!(
                     "Vars '{}' and '{}' must be set in order to clone",
-                    GIT_URL_NAME, GIT_PRIVATE_KEY
-                );
-                std::process::exit(1);
+                    GIT_URL_NAME,
+                    GIT_PRIVATE_KEY
+                ));
             }
         };
         let branch = env::var(GIT_BRANCH_NAME).unwrap_or_else(|_| "main".to_string());
@@ -62,13 +63,13 @@ impl Repo {
         Ok(())
     }
 
-    pub fn open() -> Result<Self, git2::Error> {
+    pub fn open() -> Result<Self> {
         Ok(Self {
             inner: Repository::open_from_env()?,
         })
     }
 
-    pub fn commit_state_file(&self, file_name: String) -> Result<(), git2::Error> {
+    pub fn commit_state_file(&self, file_name: String) -> Result<()> {
         let path = Path::new(&file_name);
         let mut index = self.inner.index()?;
         index.add_path(&path)?;
@@ -122,19 +123,15 @@ impl Repo {
             .expect("Cannot check ignore status")
     }
 
-    pub fn is_file_dirty(&self, file: &PathBuf) -> Result<bool, git2::Error> {
+    pub fn is_file_dirty(&self, file: &PathBuf) -> Result<bool> {
         Ok(!self.inner.status_file(file.as_path())?.is_empty())
     }
 
-    pub fn head_commit_hash(&self) -> Result<CommitHash, git2::Error> {
+    pub fn head_commit_hash(&self) -> Result<CommitHash> {
         Ok(CommitHash(self.head_oid().to_string()))
     }
 
-    pub fn checkout_file_from<'a>(
-        &self,
-        path: &str,
-        commit: &CommitHash,
-    ) -> Result<(), git2::Error> {
+    pub fn checkout_file_from<'a>(&self, path: &str, commit: &CommitHash) -> Result<()> {
         let object = self.inner.find_object(
             Oid::from_str(&commit.0).expect("Couldn't parse Oid"),
             Some(ObjectType::Commit),
@@ -148,11 +145,7 @@ impl Repo {
         Ok(())
     }
 
-    pub fn checkout_head(
-        &self,
-        filters: Option<&[String]>,
-        ignore_files: Vec<&str>,
-    ) -> Result<(), git2::Error> {
+    pub fn checkout_head(&self, filters: Option<&[String]>, ignore_files: Vec<&str>) -> Result<()> {
         let mut checkout = CheckoutBuilder::new();
         self.inner.reset(
             self.head_commit().as_object(),

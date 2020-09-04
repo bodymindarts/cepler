@@ -1,22 +1,30 @@
 use super::{config::EnvironmentConfig, database::*, git::*};
-use thiserror::Error;
+use anyhow::*;
 
 pub struct Workspace {
     path_to_config: String,
     db: Database,
 }
 impl Workspace {
-    pub fn new(path_to_config: String) -> Result<Self, WorkspaceError> {
+    pub fn new(path_to_config: String) -> Result<Self> {
         Ok(Self {
             db: Database::open()?,
             path_to_config,
         })
     }
-    pub fn prepare(
-        &self,
-        env: &EnvironmentConfig,
-        force_clean: bool,
-    ) -> Result<(), WorkspaceError> {
+
+    pub fn check(&self, env: &EnvironmentConfig) -> Result<()> {
+        let repo = Repo::open()?;
+        let new_env_state = self.construct_env_state(&repo, env)?;
+        if let Some(last) = self.db.get_current_state(&env.name) {
+            if last.equivalent(&new_env_state) {
+                return Err(anyhow!("Current state is equivalent with last recorded"));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
         let repo = Repo::open()?;
         let head_files = if force_clean {
             Some(env.head_filters())
@@ -41,11 +49,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn record_env(
-        &mut self,
-        env: &EnvironmentConfig,
-        commit: bool,
-    ) -> Result<(), WorkspaceError> {
+    pub fn record_env(&mut self, env: &EnvironmentConfig, commit: bool) -> Result<()> {
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env)?;
         let state_file = self
@@ -57,11 +61,7 @@ impl Workspace {
         Ok(())
     }
 
-    fn construct_env_state(
-        &self,
-        repo: &Repo,
-        env: &EnvironmentConfig,
-    ) -> Result<DeployState, WorkspaceError> {
+    fn construct_env_state(&self, repo: &Repo, env: &EnvironmentConfig) -> Result<DeployState> {
         let head_commit = repo.head_commit_hash()?;
         let mut new_env_state = DeployState::new(head_commit);
 
@@ -99,19 +99,5 @@ impl Workspace {
         }
 
         Ok(new_env_state)
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum WorkspaceError {
-    #[error("{0}")]
-    DbError(#[from] DatabaseError),
-    #[error("Error interfacing with git - {0}")]
-    GitError(String),
-}
-
-impl From<git2::Error> for WorkspaceError {
-    fn from(err: git2::Error) -> Self {
-        WorkspaceError::GitError(err.message().to_string())
     }
 }

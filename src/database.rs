@@ -1,4 +1,5 @@
 use super::git::*;
+use anyhow::*;
 use glob::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -7,7 +8,6 @@ use std::{
     io::{BufReader, Read},
     path::Path,
 };
-use thiserror::Error;
 
 pub struct Database {
     state: DbState,
@@ -17,7 +17,7 @@ pub struct Database {
 pub const STATE_DIR: &str = ".cepler";
 
 impl Database {
-    pub fn open() -> Result<Self, DatabaseError> {
+    pub fn open() -> Result<Self> {
         let mut state = DbState::default();
         let dir = STATE_DIR;
         if Path::new(&dir).is_dir() {
@@ -44,7 +44,7 @@ impl Database {
         &mut self,
         name: String,
         mut env: DeployState,
-    ) -> Result<String, DatabaseError> {
+    ) -> Result<String> {
         let any_dirty = env.files.values().any(|f| f.dirty);
         env.any_dirty = any_dirty;
         let ret = format!("{}/{}.state", self.state_dir, &name);
@@ -64,22 +64,10 @@ impl Database {
         Ok(ret)
     }
 
-    fn persist(&self) -> Result<(), DatabaseError> {
-        use std::fs;
-        use std::io::Write;
-        let _ = fs::remove_dir_all(&self.state_dir);
-        fs::create_dir(&self.state_dir)?;
-        for (name, env) in self.state.environments.iter() {
-            let mut file = File::create(&format!("{}/{}.state", self.state_dir, name))?;
-            file.write_all(&serde_yaml::to_vec(&env)?)?;
-        }
-        Ok(())
-    }
-
     pub fn get_target_propagated_state(
         &self,
-        env: &String,
-        propagated_from: &String,
+        env: &str,
+        propagated_from: &str,
     ) -> Option<&DeployState> {
         match (
             self.state.environments.get(env),
@@ -110,6 +98,22 @@ impl Database {
             _ => None,
         }
     }
+
+    pub fn get_current_state(&self, env: &str) -> Option<&DeployState> {
+        self.state.environments.get(env).map(|env| &env.current)
+    }
+
+    fn persist(&self) -> Result<()> {
+        use std::fs;
+        use std::io::Write;
+        let _ = fs::remove_dir_all(&self.state_dir);
+        fs::create_dir(&self.state_dir)?;
+        for (name, env) in self.state.environments.iter() {
+            let mut file = File::create(&format!("{}/{}.state", self.state_dir, name))?;
+            file.write_all(&serde_yaml::to_vec(&env)?)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -126,7 +130,7 @@ pub struct EnvironmentState {
 }
 
 impl EnvironmentState {
-    fn from_reader(reader: impl Read) -> Result<Self, DatabaseError> {
+    fn from_reader(reader: impl Read) -> Result<Self> {
         let state = serde_yaml::from_reader(reader)?;
         Ok(state)
     }
@@ -153,6 +157,21 @@ impl DeployState {
             files: BTreeMap::new(),
         }
     }
+
+    pub fn equivalent(&self, other: &Self) -> bool {
+        if self.any_dirty || other.any_dirty || self.files.len() != other.files.len() {
+            false
+        } else {
+            for ((my_name, my_state), (other_name, other_state)) in
+                self.files.iter().zip(other.files.iter())
+            {
+                if my_name != other_name || my_state.file_hash != other_state.file_hash {
+                    return false;
+                }
+            }
+            true
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -167,24 +186,4 @@ pub struct FileState {
 
 fn is_false(b: &bool) -> bool {
     !b
-}
-
-#[derive(Debug, Error)]
-pub enum DatabaseError {
-    #[error("Could not read the database file: '{0}'")]
-    UnknownFormat(#[from] serde_yaml::Error),
-    #[error("Could not open the database file: '{0}'")]
-    CouldNotOpen(#[from] std::io::Error),
-    #[error("Error interfacing with git: '{0}'")]
-    GitError(String),
-    #[error("{0}")]
-    PatternError(#[from] PatternError),
-    #[error("{0}")]
-    GlobError(#[from] GlobError),
-}
-
-impl From<git2::Error> for DatabaseError {
-    fn from(err: git2::Error) -> Self {
-        DatabaseError::GitError(err.message().to_string())
-    }
 }

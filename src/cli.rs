@@ -7,7 +7,11 @@ fn app() -> App<'static, 'static> {
         (version: crate_version!())
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
-        (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") {config_file} "Cepler config file")
+        (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
+        (@subcommand check =>
+            (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+            (@arg CLONE_DIR: -c --("clone") +takes_value "Clone the repository into <dir>")
+        )
         (@subcommand record =>
             (about: "Record the state of an environment in the statefile")
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
@@ -17,7 +21,6 @@ fn app() -> App<'static, 'static> {
             (about: "Prepare workspace for hook execution")
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
             (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
-            (@arg CLONE_DIR: -c --("clone") +takes_value "Clone the repository into <dir>")
         )
         (@subcommand concourse =>
             (about: "Render a concourse pipeline")
@@ -30,18 +33,45 @@ fn app() -> App<'static, 'static> {
 pub fn run() -> Result<()> {
     let matches = app().get_matches();
     match matches.subcommand() {
-        ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
+        ("check", Some(sub_matches)) => check(sub_matches, &matches),
         ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
+        ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(_)) => concourse(conf_from_matches(&matches)?),
         _ => unreachable!(),
     }
 }
 
-fn concourse((conf, _): (Config, String)) -> Result<()> {
-    if conf.concourse.is_none() {
-        anyhow!("concourse: key not specified");
+fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
+    let env = matches.value_of("ENVIRONMENT").unwrap();
+    if let Some(dir) = matches.value_of("CLONE_DIR") {
+        Repo::clone(&dir)?;
+        std::env::set_current_dir(dir)?;
     }
-    println!("{}", Concourse::new(conf).render_pipeline());
+    let config = conf_from_matches(main_matches)?;
+    let ws = Workspace::new(config.1)?;
+    let env = config
+        .0
+        .environments
+        .get(env)
+        .context(format!("Environment '{}' not found in config", env))?;
+    println!("Checking wether environment '{}' needs deploying", env.name);
+    ws.check(env)?;
+    println!("Last recorded state differs from current");
+    Ok(())
+}
+fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
+    let env = matches.value_of("ENVIRONMENT").unwrap();
+    let force_clean: bool = matches.is_present("FORCE_CLEAN");
+    if force_clean {
+        println!("WARNING removing all non-cepler specified files");
+    }
+    let env = config
+        .0
+        .environments
+        .get(env)
+        .context(format!("Environment '{}' not found in config", env))?;
+    let ws = Workspace::new(config.1)?;
+    ws.prepare(env, force_clean)?;
     Ok(())
 }
 
@@ -58,38 +88,11 @@ fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     Ok(())
 }
 
-fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
-    let env = matches.value_of("ENVIRONMENT").unwrap();
-    if let Some(dir) = matches.value_of("CLONE_DIR") {
-        if Repo::clone(&dir).is_err() {
-            eprintln!("Couldn't clone!");
-            std::process::exit(1);
-        }
-        std::env::set_current_dir(dir).expect("Changing directory");
+fn concourse((conf, _): (Config, String)) -> Result<()> {
+    if conf.concourse.is_none() {
+        return Err(anyhow!("concourse: key not specified"));
     }
-    let force_clean: bool = matches.is_present("FORCE_CLEAN");
-    if force_clean {
-        println!("WARNING removing all non-cepler specified files");
-    }
-    let env = config
-        .0
-        .environments
-        .get(env)
-        .context(format!("Environment '{}' not found in config", env))?;
-    let ws = Workspace::new(config.1)?;
-    ws.prepare(env, force_clean)?;
-    Ok(())
-}
-
-fn config_file(file: String) -> Result<(), String> {
-    use std::path::Path;
-    let path = Path::new(&file);
-    match (path.exists(), path.is_file()) {
-        (true, true) => Ok(()),
-        (false, _) => Err(format!("File '{}' does not exist", file)),
-        (_, false) => Err(format!("'{}' is not a file", file)),
-    }?;
-    Config::from_file(path).map_err(|e| format!("Couldn't parse config file - '{}'", e))?;
+    println!("{}", Concourse::new(conf).render_pipeline());
     Ok(())
 }
 
