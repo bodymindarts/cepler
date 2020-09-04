@@ -1,9 +1,20 @@
 jobs:
-{{~#each jobs}}
+{{#each jobs ~}}
 {{> job this }}
-{{~/each}}
-
+{{/each ~}}
 resources:
-{{~#each resources}}
+{{#each resources ~}}
 {{> resource this }}
-{{~/each}}
+{{/each ~}}
+- name: repo
+  type: git
+  source:
+    uri: {{repo_uri}}
+    branch: {{branch}}
+    private_key: {{github_private_key}}
+- name: propagator
+  type: git
+  source:
+    uri: {{repo_uri}}
+    branch: {{branch}}
+    private_key: {{github_private_key}}

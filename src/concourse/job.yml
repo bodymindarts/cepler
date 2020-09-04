@@ -1,1 +1,29 @@
-- name: job
+- name: {{name}}
+  serial: true
+  plan:
+  - in_parallel:
+    - { get: repo }
+{{~#if has_head }}
+    - { get: {{name}}-head, trigger: true }
+{{~/if}}
+    - get: propagator
+{{~#if passed }}
+      trigger: true
+      passed: [{{passed}}]
+{{~/if}}
+  - task: prepare-workspace
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: bodymindarts/cepler
+          tag: latest
+      inputs:
+      - name: repo
+      outputs:
+      - name: repo
+      run:
+        path: cepler
+        args: ["prepare", "-e", "{{name}}"]
+        dir: repo

@@ -30,15 +30,27 @@ impl Concourse {
     }
 
     pub fn render_pipeline(&self) -> String {
+        let repo = self.repo_conf();
         let data = ConcourseData {
             jobs: self.get_jobs(),
             resources: self.get_resources(),
+            repo_uri: &repo.uri,
+            branch: &repo.branch,
+            github_private_key: &repo.private_key,
         };
         self.handlebars.render(BASE_TEMPLATE_NAME, &data).unwrap()
     }
 
     fn get_jobs(&self) -> Vec<JobData> {
-        Vec::new()
+        let mut jobs = Vec::new();
+        for env in self.environments() {
+            jobs.push(JobData {
+                name: &env.name,
+                has_head: !env.head_filters().is_empty(),
+                passed: env.propagated_from(),
+            })
+        }
+        jobs
     }
 
     fn get_resources(&self) -> Vec<Resource> {
@@ -51,15 +63,6 @@ impl Concourse {
                     repo_uri: &repo.uri,
                     branch: &repo.branch,
                     paths: env.head_filters(),
-                    github_private_key: &repo.private_key,
-                });
-            }
-            if env.propagated_from().is_some() && !env.propagated_filters().is_empty() {
-                resources.push(Resource {
-                    name: propagated_resource_name(env),
-                    repo_uri: &repo.uri,
-                    branch: &repo.branch,
-                    paths: env.propagated_filters(),
                     github_private_key: &repo.private_key,
                 });
             }
@@ -88,12 +91,17 @@ fn propagated_resource_name(env: &EnvironmentConfig) -> String {
 
 #[derive(Debug, Serialize)]
 struct ConcourseData<'a> {
-    jobs: Vec<JobData>,
+    jobs: Vec<JobData<'a>>,
     resources: Vec<Resource<'a>>,
+    repo_uri: &'a str,
+    branch: &'a str,
+    github_private_key: &'a str,
 }
 #[derive(Debug, Serialize)]
-struct JobData {
-    name: String,
+struct JobData<'a> {
+    name: &'a String,
+    has_head: bool,
+    passed: Option<&'a String>,
 }
 #[derive(Debug, Serialize)]
 struct Resource<'a> {
