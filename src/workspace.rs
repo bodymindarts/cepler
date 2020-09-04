@@ -10,9 +10,18 @@ impl Workspace {
             db: Database::open(path_to_state)?,
         })
     }
-    pub fn prepare(&self, env: &EnvironmentConfig) -> Result<(), WorkspaceError> {
+    pub fn prepare(
+        &self,
+        env: &EnvironmentConfig,
+        force_clean: bool,
+    ) -> Result<(), WorkspaceError> {
         let repo = Repo::open()?;
-        repo.checkout_head()?;
+        let head_files = if force_clean {
+            Some(env.head_filters())
+        } else {
+            None
+        };
+        repo.checkout_head(head_files)?;
         for file in env.propagated_files() {
             std::fs::remove_file(file).expect("Couldn't remove file");
         }

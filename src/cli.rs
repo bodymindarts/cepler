@@ -15,6 +15,7 @@ fn app() -> App<'static, 'static> {
         (@subcommand prepare =>
             (about: "Prepare workspace for hook execution")
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+            (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
         )
         (@subcommand hook =>
             (about: "Execute the hook")
@@ -92,11 +93,14 @@ fn record(matches: &ArgMatches, state_file: String, config: Config) {
 
 fn prepare(matches: &ArgMatches, state_file: String, config: Config) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
+    let force_clean: bool = matches.is_present("FORCE_CLEAN");
     if let Some(env) = config.environments.get(env) {
         match Workspace::new(state_file) {
             Ok(ws) => {
-                if let Err(e) = ws.prepare(env) {
+                if let Err(e) = ws.prepare(env, force_clean) {
                     println!("{}", e);
+                } else {
+                    println!("Workspace prepared to deploy '{}'", env.name);
                 }
             }
             Err(e) => {
