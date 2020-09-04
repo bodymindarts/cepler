@@ -8,4 +8,4 @@
     - {{this}}
 {{~/each}}{{~/if}}
     branch: {{branch}}
-    private_key: {{github_private_key}}
+    private_key: {{git_private_key}}

@@ -2,7 +2,6 @@
   serial: true
   plan:
   - in_parallel:
-    - { get: repo }
 {{~#if has_head }}
     - { get: {{name}}-head, trigger: true }
 {{~/if}}
@@ -19,13 +18,15 @@
         source:
           repository: bodymindarts/cepler
           tag: latest
-      inputs:
-      - name: repo
       outputs:
       - name: repo
+      params:
+        GIT_URL: {{repo_url}}
+        GIT_BRANCH: {{branch}}
+        GIT_PRIVATE_KEY: {{git_private_key}}
       run:
         path: cepler
-        args: ["prepare", "-e", "{{name}}", "--force-clean"]
+        args: ["prepare", "-e", "{{name}}", "--force-clean", "--clone", "repo"]
         dir: repo
   - task: execute
     config:

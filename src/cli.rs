@@ -1,4 +1,4 @@
-use super::{concourse::Concourse, config::Config, workspace::Workspace};
+use super::{concourse::Concourse, config::Config, git::Repo, workspace::Workspace};
 use clap::{clap_app, crate_version, App, ArgMatches};
 
 fn app() -> App<'static, 'static> {
@@ -16,6 +16,7 @@ fn app() -> App<'static, 'static> {
             (about: "Prepare workspace for hook execution")
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
             (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
+            (@arg CLONE_DIR: -c --("clone") +takes_value "Clone the repository into <dir>")
         )
         (@subcommand concourse =>
             (about: "Render a concourse pipeline")
@@ -68,6 +69,13 @@ fn record(matches: &ArgMatches, config: (Config, String)) {
 
 fn prepare(matches: &ArgMatches, config: (Config, String)) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
+    if let Some(dir) = matches.value_of("CLONE_DIR") {
+        if Repo::clone(&dir).is_err() {
+            eprintln!("Couldn't clone!");
+            std::process::exit(1);
+        }
+        std::env::set_current_dir(dir).expect("Changing directory");
+    }
     let force_clean: bool = matches.is_present("FORCE_CLEAN");
     if force_clean {
         println!("WARNING removing all non-cepler specified files");

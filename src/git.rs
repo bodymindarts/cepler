@@ -1,4 +1,7 @@
-use git2::{build::CheckoutBuilder, Commit, ObjectType, Oid, Repository, ResetType, Signature};
+use git2::{
+    build::CheckoutBuilder, Commit, Cred, ObjectType, Oid, RemoteCallbacks, Repository, ResetType,
+    Signature,
+};
 use glob::*;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
@@ -26,7 +29,39 @@ pub struct Repo {
     inner: Repository,
 }
 
+const GIT_URL_NAME: &str = "GIT_URL";
+const GIT_BRANCH_NAME: &str = "GIT_BRANCH";
+const GIT_PRIVATE_KEY: &str = "GIT_PRIVATE_KEY";
+
 impl Repo {
+    pub fn clone(dir: &str) -> Result<(), git2::Error> {
+        use std::env;
+        let (url, key) = match (env::var(GIT_URL_NAME), env::var(GIT_PRIVATE_KEY)) {
+            (Ok(url), Ok(key)) => (url, key),
+            _ => {
+                eprintln!(
+                    "Vars '{}' and '{}' must be set in order to clone",
+                    GIT_URL_NAME, GIT_PRIVATE_KEY
+                );
+                std::process::exit(1);
+            }
+        };
+        let branch = env::var(GIT_BRANCH_NAME).unwrap_or_else(|_| "main".to_string());
+        println!("Cloning into {}", dir);
+        let mut callbacks = RemoteCallbacks::new();
+        callbacks.credentials(|_url, username_from_url, _allowed_types| {
+            Cred::ssh_key_from_memory(username_from_url.unwrap(), None, &key, None)
+        });
+        let mut fo = git2::FetchOptions::new();
+        fo.remote_callbacks(callbacks);
+
+        let mut builder = git2::build::RepoBuilder::new();
+        builder.fetch_options(fo);
+        builder.branch(&branch);
+        builder.clone(&url, Path::new(dir))?;
+        Ok(())
+    }
+
     pub fn open() -> Result<Self, git2::Error> {
         Ok(Self {
             inner: Repository::open_from_env()?,

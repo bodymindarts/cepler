@@ -44,24 +44,24 @@ impl Concourse {
     }
 
     pub fn render_pipeline(&self) -> String {
-        let repo = self.repo_conf();
         let data = ConcourseData {
             jobs: self.get_jobs(),
             resources: self.get_resources(),
-            repo_uri: &repo.uri,
-            branch: &repo.branch,
-            github_private_key: &repo.private_key,
         };
         self.handlebars.render(BASE_TEMPLATE_NAME, &data).unwrap()
     }
 
     fn get_jobs(&self) -> Vec<JobData> {
+        let repo = self.repo_conf();
         let mut jobs = Vec::new();
         for env in self.environments() {
             jobs.push(JobData {
                 name: &env.name,
                 has_head: !env.head_filters().is_empty(),
                 passed: env.propagated_from(),
+                repo_uri: &repo.uri,
+                branch: &repo.branch,
+                git_private_key: &repo.private_key,
             })
         }
         jobs
@@ -76,7 +76,7 @@ impl Concourse {
                 repo_uri: &repo.uri,
                 branch: &env.name,
                 paths: None,
-                github_private_key: &repo.private_key,
+                git_private_key: &repo.private_key,
             });
             if !env.head_filters().is_empty() {
                 resources.push(Resource {
@@ -84,7 +84,7 @@ impl Concourse {
                     repo_uri: &repo.uri,
                     branch: &repo.branch,
                     paths: Some(env.head_filters()),
-                    github_private_key: &repo.private_key,
+                    git_private_key: &repo.private_key,
                 });
             }
         }
@@ -93,14 +93,14 @@ impl Concourse {
             repo_uri: &repo.uri,
             branch: &repo.branch,
             paths: None,
-            github_private_key: &repo.private_key,
+            git_private_key: &repo.private_key,
         });
         resources.push(Resource {
             name: "propagator".to_string(),
             repo_uri: &repo.uri,
             branch: &repo.branch,
             paths: None,
-            github_private_key: &repo.private_key,
+            git_private_key: &repo.private_key,
         });
         resources
     }
@@ -150,21 +150,21 @@ fn user_run(run: &serde_yaml::Value) -> String {
 struct ConcourseData<'a> {
     jobs: Vec<JobData<'a>>,
     resources: Vec<Resource<'a>>,
-    repo_uri: &'a str,
-    branch: &'a str,
-    github_private_key: &'a str,
 }
 #[derive(Debug, Serialize)]
 struct JobData<'a> {
     name: &'a String,
     has_head: bool,
     passed: Option<&'a String>,
+    repo_uri: &'a str,
+    branch: &'a str,
+    git_private_key: &'a str,
 }
 #[derive(Debug, Serialize)]
 struct Resource<'a> {
     name: String,
     repo_uri: &'a str,
     branch: &'a str,
-    github_private_key: &'a str,
+    git_private_key: &'a str,
     paths: Option<&'a [String]>,
 }
