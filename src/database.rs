@@ -99,8 +99,11 @@ impl Database {
         }
     }
 
-    pub fn get_current_state(&self, env: &str) -> Option<&DeployState> {
-        self.state.environments.get(env).map(|env| &env.current)
+    pub fn get_current_state(&self, env: &str) -> Option<(&DeployState, usize)> {
+        self.state
+            .environments
+            .get(env)
+            .map(|env| (&env.current, env.history.len() + 2))
     }
 
     fn persist(&self) -> Result<()> {

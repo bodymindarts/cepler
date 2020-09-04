@@ -54,9 +54,13 @@ fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
-    println!("Checking wether environment '{}' needs deploying", env.name);
-    ws.check(env)?;
-    println!("Good to go... last recorded state differs from current");
+    match ws.check(env) {
+        Ok(deployment_no) => println!("{}", deployment_no),
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(2);
+        }
+    }
     Ok(())
 }
 fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {

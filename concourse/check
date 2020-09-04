@@ -1,0 +1,31 @@
+#!/bin/bash
+
+cat > $payload <&0
+
+export GIT_URI=$(jq -r '.source.uri // ""' < $payload)
+export GIT_BRANCH=$(jq -r '.source.branch // ""' < $payload)
+export GIT_PRIVATE_KEY=$(jq -r '.source.private_key // ""' < $payload)
+environment=$(jq -r '.source.environment // ""' < $payload)
+
+deployment_no=$(jq -r '.version.deployment_no')
+
+clone_arg=""
+if [ -d /tmp/repo ] ; then
+  cd /tmp/repo
+  git pull
+else
+  clone_arg="--clone repo"
+fi
+
+next_deployment_no=$(cepler check -e ${environment} ${clone_arg})
+
+res=$?
+if [[ $res != 0 ]]; then
+  if [[ $res == 1 ]]; then
+    echo "[ ]"
+  else
+    echo "[ { \"deployment_no\": ${deployment_no} } ]"
+  fi
+else
+  echo "[ { \"deployment_no\": ${deployment_no} }, { \"deployment_no\": ${next_deployment_no} } ]"
+fi

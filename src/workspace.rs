@@ -13,15 +13,17 @@ impl Workspace {
         })
     }
 
-    pub fn check(&self, env: &EnvironmentConfig) -> Result<()> {
+    pub fn check(&self, env: &EnvironmentConfig) -> Result<usize> {
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env)?;
-        if let Some(last) = self.db.get_current_state(&env.name) {
-            if last.equivalent(&new_env_state) {
-                return Err(anyhow!("Current state is equivalent with last recorded"));
-            }
+        if let Some((last, deployment_no)) = self.db.get_current_state(&env.name) {
+            return if last.equivalent(&new_env_state) {
+                Err(anyhow!("Current state is equivalent with last recorded"))
+            } else {
+                Ok(deployment_no)
+            };
         }
-        Ok(())
+        Ok(1)
     }
 
     pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {

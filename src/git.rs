@@ -30,24 +30,24 @@ pub struct Repo {
     inner: Repository,
 }
 
-const GIT_URL_NAME: &str = "GIT_URL";
-const GIT_BRANCH_NAME: &str = "GIT_BRANCH";
+const GIT_URL: &str = "GIT_URL";
+const GIT_BRANCH: &str = "GIT_BRANCH";
 const GIT_PRIVATE_KEY: &str = "GIT_PRIVATE_KEY";
 
 impl Repo {
     pub fn clone(dir: &str) -> Result<()> {
         use std::env;
-        let (url, key) = match (env::var(GIT_URL_NAME), env::var(GIT_PRIVATE_KEY)) {
+        let (url, key) = match (env::var(GIT_URL), env::var(GIT_PRIVATE_KEY)) {
             (Ok(url), Ok(key)) => (url, key),
             _ => {
                 return Err(anyhow!(
                     "Vars '{}' and '{}' must be set in order to clone",
-                    GIT_URL_NAME,
+                    GIT_URL,
                     GIT_PRIVATE_KEY
                 ));
             }
         };
-        let branch = env::var(GIT_BRANCH_NAME).unwrap_or_else(|_| "main".to_string());
+        let branch = env::var(GIT_BRANCH).unwrap_or_else(|_| "main".to_string());
         println!("Cloning into {}", dir);
         let mut callbacks = RemoteCallbacks::new();
         callbacks.credentials(|_url, username_from_url, _allowed_types| {
