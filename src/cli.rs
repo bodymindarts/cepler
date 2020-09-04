@@ -43,7 +43,7 @@ pub fn run() {
     }
 }
 
-fn concourse(conf: Config) {
+fn concourse((conf, _): (Config, String)) {
     if conf.concourse.is_none() {
         eprintln!("concourse: key not specified");
         std::process::exit(1);
@@ -51,10 +51,10 @@ fn concourse(conf: Config) {
     println!("{}", Concourse::new(conf).render_pipeline())
 }
 
-fn record(matches: &ArgMatches, state_file: String, config: Config) {
+fn record(matches: &ArgMatches, state_file: String, config: (Config, String)) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
-    if let Some(env) = config.environments.get(env) {
-        match Workspace::new(state_file) {
+    if let Some(env) = config.0.environments.get(env) {
+        match Workspace::new(state_file, config.1) {
             Ok(mut ws) => {
                 if let Err(e) = ws.record_env(env) {
                     println!("{}", e);
@@ -71,14 +71,14 @@ fn record(matches: &ArgMatches, state_file: String, config: Config) {
     }
 }
 
-fn prepare(matches: &ArgMatches, state_file: String, config: Config) {
+fn prepare(matches: &ArgMatches, state_file: String, config: (Config, String)) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let force_clean: bool = matches.is_present("FORCE_CLEAN");
     if force_clean {
         println!("WARNING removing all non-cepler specified files");
     }
-    if let Some(env) = config.environments.get(env) {
-        match Workspace::new(state_file) {
+    if let Some(env) = config.0.environments.get(env) {
+        match Workspace::new(state_file, config.1) {
             Ok(ws) => {
                 if let Err(e) = ws.prepare(env, force_clean) {
                     println!("{}", e);
@@ -109,6 +109,7 @@ fn config_file(file: String) -> Result<(), String> {
     Ok(())
 }
 
-fn conf_from_matches(matches: &ArgMatches) -> Config {
-    Config::from_file(matches.value_of("CONFIG_FILE").unwrap()).unwrap()
+fn conf_from_matches(matches: &ArgMatches) -> (Config, String) {
+    let file_name = matches.value_of("CONFIG_FILE").unwrap();
+    (Config::from_file(file_name).unwrap(), file_name.to_string())
 }

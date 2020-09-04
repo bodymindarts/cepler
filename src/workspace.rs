@@ -2,14 +2,14 @@ use super::{config::EnvironmentConfig, database::*, git::*};
 use thiserror::Error;
 
 pub struct Workspace {
-    path_to_state: String,
+    path_to_config: String,
     db: Database,
 }
 impl Workspace {
-    pub fn new(path_to_state: String) -> Result<Self, WorkspaceError> {
+    pub fn new(path_to_config: String, path_to_state: String) -> Result<Self, WorkspaceError> {
         Ok(Self {
-            db: Database::open(&path_to_state)?,
-            path_to_state,
+            db: Database::open(path_to_state)?,
+            path_to_config,
         })
     }
     pub fn prepare(
@@ -23,7 +23,7 @@ impl Workspace {
         } else {
             None
         };
-        let ignore_list = vec![self.path_to_state.as_ref()];
+        let ignore_list = vec![self.path_to_config.as_ref()];
         repo.checkout_head(head_files, ignore_list)?;
         for file in env.propagated_files() {
             std::fs::remove_file(file).expect("Couldn't remove file");
