@@ -71,16 +71,37 @@ impl Concourse {
         let repo = self.repo_conf();
         let mut resources = Vec::new();
         for env in self.environments() {
+            resources.push(Resource {
+                name: env.name.clone(),
+                repo_uri: &repo.uri,
+                branch: &env.name,
+                paths: None,
+                github_private_key: &repo.private_key,
+            });
             if !env.head_filters().is_empty() {
                 resources.push(Resource {
                     name: head_resource_name(env),
                     repo_uri: &repo.uri,
                     branch: &repo.branch,
-                    paths: env.head_filters(),
+                    paths: Some(env.head_filters()),
                     github_private_key: &repo.private_key,
                 });
             }
         }
+        resources.push(Resource {
+            name: "repo".to_string(),
+            repo_uri: &repo.uri,
+            branch: &repo.branch,
+            paths: None,
+            github_private_key: &repo.private_key,
+        });
+        resources.push(Resource {
+            name: "propagator".to_string(),
+            repo_uri: &repo.uri,
+            branch: &repo.branch,
+            paths: None,
+            github_private_key: &repo.private_key,
+        });
         resources
     }
 
@@ -145,5 +166,5 @@ struct Resource<'a> {
     repo_uri: &'a str,
     branch: &'a str,
     github_private_key: &'a str,
-    paths: &'a [String],
+    paths: Option<&'a [String]>,
 }

@@ -2,9 +2,10 @@
   type: git
   source:
     uri: {{repo_uri}}
+{{~#if paths}}
     paths:
 {{~#each paths}}
     - {{this}}
-{{~/each}}
+{{~/each}}{{~/if}}
     branch: {{branch}}
     private_key: {{github_private_key}}

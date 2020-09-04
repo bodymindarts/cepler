@@ -6,16 +6,3 @@ resources:
 {{#each resources ~}}
 {{> resource this }}
 {{/each ~}}
-- name: repo
-  type: git
-  source:
-    uri: {{repo_uri}}
-    branch: {{branch}}
-    private_key: {{github_private_key}}
-
-- name: propagator
-  type: git
-  source:
-    uri: {{repo_uri}}
-    branch: {{branch}}
-    private_key: {{github_private_key}}
