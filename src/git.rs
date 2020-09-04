@@ -1,7 +1,10 @@
-use git2::{build::CheckoutBuilder, ObjectType, Oid, Repository};
+use git2::{build::CheckoutBuilder, Commit, ObjectType, Oid, Repository, ResetType};
 use glob::*;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::{HashSet, VecDeque},
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -64,9 +67,7 @@ impl Repo {
     }
 
     pub fn head_commit_hash(&self) -> Result<CommitHash, git2::Error> {
-        Ok(CommitHash(
-            self.inner.head()?.peel_to_commit()?.id().to_string(),
-        ))
+        Ok(CommitHash(self.head_oid().to_string()))
     }
 
     pub fn checkout_file_from<'a>(
@@ -81,6 +82,7 @@ impl Repo {
         let mut checkout = CheckoutBuilder::new();
         checkout.force();
         checkout.path(path);
+        checkout.update_index(false);
         self.inner.checkout_tree(&object, Some(&mut checkout))?;
 
         Ok(())
@@ -88,7 +90,51 @@ impl Repo {
 
     pub fn checkout_head(&self) -> Result<(), git2::Error> {
         let mut checkout = CheckoutBuilder::new();
-        checkout.force();
-        Ok(self.inner.checkout_head(Some(&mut checkout))?)
+        Ok(self.inner.reset(
+            self.head_commit().as_object(),
+            ResetType::Hard,
+            Some(&mut checkout),
+        )?)
+    }
+
+    pub fn find_last_changed_commit(&self, file: &Path) -> (CommitHash, String) {
+        let commit = self.head_commit();
+        let target = commit
+            .tree()
+            .expect("Couldn't resolve tree")
+            .get_path(file)
+            .expect("Couldn't get path");
+        let mut set = HashSet::new();
+        let mut queue = VecDeque::new();
+        set.insert(commit.id());
+        queue.push_back(commit);
+
+        loop {
+            let commit = queue.pop_front().unwrap();
+            let mut go = false;
+            for parent in commit.parents() {
+                if let Ok(tree) = parent.tree().expect("Couldn't get tree").get_path(file) {
+                    let eq = tree.id() == target.id();
+                    if eq && set.insert(parent.id()) {
+                        queue.push_back(parent);
+                    }
+                    go = go || eq;
+                }
+            }
+            if !go || queue.is_empty() {
+                return (
+                    CommitHash(commit.id().to_string()),
+                    commit.summary().expect("Couldn't get summary").to_string(),
+                );
+            }
+        }
+    }
+
+    fn head_commit(&self) -> Commit<'_> {
+        self.inner.head().unwrap().peel_to_commit().unwrap()
+    }
+
+    fn head_oid(&self) -> Oid {
+        self.inner.head().unwrap().peel_to_commit().unwrap().id()
     }
 }

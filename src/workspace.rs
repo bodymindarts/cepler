@@ -21,10 +21,7 @@ impl Workspace {
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (name, state) in env_state.files.iter() {
                     if patterns.iter().any(|p| p.matches(&name)) {
-                        repo.checkout_file_from(
-                            name,
-                            state.from_commit.as_ref().unwrap_or(&env_state.head_commit),
-                        )?;
+                        repo.checkout_file_from(name, &state.from_commit)?;
                     }
                 }
             }
@@ -47,15 +44,15 @@ impl Workspace {
         for file in repo.head_files(env.head_filters()) {
             let dirty = repo.is_file_dirty(&file)?;
             let file_name = file.to_str().unwrap().to_string();
+            let (from_commit, message) = repo.find_last_changed_commit(&file);
             let file_hash = hash_file(file);
-            new_env_state.files.insert(
-                file_name,
-                FileState {
-                    file_hash,
-                    dirty,
-                    from_commit: None,
-                },
-            );
+            let state = FileState {
+                file_hash,
+                dirty,
+                from_commit,
+                message,
+            };
+            new_env_state.files.insert(file_name, state);
         }
 
         if let Some(previous_env) = env.propagated_from() {
@@ -68,13 +65,8 @@ impl Workspace {
                         let file_state = FileState {
                             dirty: file_hash != prev_state.file_hash,
                             file_hash,
-                            from_commit: Some(
-                                prev_state
-                                    .from_commit
-                                    .as_ref()
-                                    .map(Clone::clone)
-                                    .unwrap_or(env_state.head_commit.clone()),
-                            ),
+                            from_commit: prev_state.from_commit.clone(),
+                            message: prev_state.message.clone(),
                         };
                         new_env_state.files.insert(name.clone(), file_state);
                     }
