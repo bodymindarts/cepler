@@ -14,7 +14,7 @@ pub struct Database {
     state_dir: &'static str,
 }
 
-const STATE_DIR: &str = ".casper";
+pub const STATE_DIR: &str = ".cepler";
 
 impl Database {
     pub fn open() -> Result<Self, DatabaseError> {

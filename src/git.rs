@@ -36,7 +36,6 @@ impl Repo {
     pub fn commit_state_file(&self, file_name: String) -> Result<(), git2::Error> {
         let path = Path::new(&file_name);
         let mut index = self.inner.index()?;
-        index.clear()?;
         index.add_path(&path)?;
         let oid = index.write_tree()?;
         let tree = self.inner.find_tree(oid)?;
@@ -52,6 +51,9 @@ impl Repo {
             &tree,
             &[&self.head_commit()],
         )?;
+        let mut checkout = CheckoutBuilder::new();
+        checkout.path(path);
+        self.inner.checkout_index(None, Some(&mut checkout))?;
         Ok(())
     }
 
@@ -144,9 +146,11 @@ impl Repo {
                     }
                 }
             }
-            self.inner
-                .checkout_head(Some(&mut checkout))
-                .expect("Couldn't checkout");
+            if !filters.is_empty() {
+                self.inner
+                    .checkout_head(Some(&mut checkout))
+                    .expect("Couldn't checkout");
+            }
         }
         Ok(())
     }

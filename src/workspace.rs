@@ -23,7 +23,7 @@ impl Workspace {
         } else {
             None
         };
-        let ignore_list = vec![self.path_to_config.as_ref()];
+        let ignore_list = vec![self.path_to_config.as_ref(), STATE_DIR];
         repo.checkout_head(head_files, ignore_list)?;
         for file in env.propagated_files() {
             std::fs::remove_file(file).expect("Couldn't remove file");
@@ -41,13 +41,20 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn record_env(&mut self, env: &EnvironmentConfig) -> Result<(), WorkspaceError> {
+    pub fn record_env(
+        &mut self,
+        env: &EnvironmentConfig,
+        commit: bool,
+    ) -> Result<(), WorkspaceError> {
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env)?;
         let state_file = self
             .db
             .set_current_environment_state(env.name.clone(), new_env_state)?;
-        Ok(repo.commit_state_file(state_file)?)
+        if commit {
+            repo.commit_state_file(state_file)?;
+        }
+        Ok(())
     }
 
     fn construct_env_state(

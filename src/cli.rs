@@ -10,6 +10,7 @@ fn app() -> App<'static, 'static> {
         (@subcommand record =>
             (about: "Record the state of an environment in the statefile")
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+            (@arg NO_COMMIT: --("no-commit") "Don't commit the new state")
         )
         (@subcommand prepare =>
             (about: "Prepare workspace for hook execution")
@@ -44,10 +45,11 @@ fn concourse((conf, _): (Config, String)) {
 
 fn record(matches: &ArgMatches, config: (Config, String)) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
+    let commit: bool = !matches.is_present("NO_COMMIT");
     if let Some(env) = config.0.environments.get(env) {
         match Workspace::new(config.1) {
             Ok(mut ws) => {
-                if let Err(e) = ws.record_env(env) {
+                if let Err(e) = ws.record_env(env, commit) {
                     println!("{}", e);
                 } else {
                     println!("State of '{}' recorded", env.name);
