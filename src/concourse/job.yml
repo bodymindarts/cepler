@@ -25,5 +25,5 @@
       - name: repo
       run:
         path: cepler
-        args: ["prepare", "-e", "{{name}}"]
+        args: ["prepare", "-e", "{{name}}", "--force-clean"]
         dir: repo

@@ -94,6 +94,9 @@ fn record(matches: &ArgMatches, state_file: String, config: Config) {
 fn prepare(matches: &ArgMatches, state_file: String, config: Config) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let force_clean: bool = matches.is_present("FORCE_CLEAN");
+    if force_clean {
+        println!("WARNING removing all non-cepler specified files");
+    }
     if let Some(env) = config.environments.get(env) {
         match Workspace::new(state_file) {
             Ok(ws) => {
