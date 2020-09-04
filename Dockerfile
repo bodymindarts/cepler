@@ -5,5 +5,5 @@ FROM clux/muslrust:stable AS build
 
 FROM alpine:latest
   COPY --from=build /src/target/x86_64-unknown-linux-musl/release/cepler /bin/
-  USER 1000
+  RUN apk update && apk upgrade && apk add bash
   CMD ["cepler --help"]
