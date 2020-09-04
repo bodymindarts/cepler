@@ -1,4 +1,4 @@
-use git2::{build::CheckoutBuilder, Commit, ObjectType, Oid, Repository, ResetType};
+use git2::{build::CheckoutBuilder, Commit, ObjectType, Oid, Repository, ResetType, Signature};
 use glob::*;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
@@ -31,6 +31,28 @@ impl Repo {
         Ok(Self {
             inner: Repository::open_from_env()?,
         })
+    }
+
+    pub fn commit_state_file(&self, file_name: String) -> Result<(), git2::Error> {
+        let path = Path::new(&file_name);
+        let mut index = self.inner.index()?;
+        index.clear()?;
+        index.add_path(&path)?;
+        let oid = index.write_tree()?;
+        let tree = self.inner.find_tree(oid)?;
+        let sig = Signature::now("Casper", "bot@casper.io")?;
+        self.inner.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            &format!(
+                "[cepler] State for {} recorder",
+                path.file_stem().unwrap().to_str().unwrap()
+            ),
+            &tree,
+            &[&self.head_commit()],
+        )?;
+        Ok(())
     }
 
     pub fn head_files(&self, filters: &[String]) -> impl Iterator<Item = PathBuf> + '_ {

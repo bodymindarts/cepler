@@ -6,9 +6,9 @@ pub struct Workspace {
     db: Database,
 }
 impl Workspace {
-    pub fn new(path_to_state: String, path_to_config: String) -> Result<Self, WorkspaceError> {
+    pub fn new(path_to_config: String) -> Result<Self, WorkspaceError> {
         Ok(Self {
-            db: Database::open(path_to_state)?,
+            db: Database::open()?,
             path_to_config,
         })
     }
@@ -42,14 +42,19 @@ impl Workspace {
     }
 
     pub fn record_env(&mut self, env: &EnvironmentConfig) -> Result<(), WorkspaceError> {
-        let new_env_state = self.construct_env_state(env)?;
-        Ok(self
+        let repo = Repo::open()?;
+        let new_env_state = self.construct_env_state(&repo, env)?;
+        let state_file = self
             .db
-            .set_current_environment_state(env.name.clone(), new_env_state)?)
+            .set_current_environment_state(env.name.clone(), new_env_state)?;
+        Ok(repo.commit_state_file(state_file)?)
     }
 
-    fn construct_env_state(&self, env: &EnvironmentConfig) -> Result<DeployState, WorkspaceError> {
-        let repo = Repo::open()?;
+    fn construct_env_state(
+        &self,
+        repo: &Repo,
+        env: &EnvironmentConfig,
+    ) -> Result<DeployState, WorkspaceError> {
         let head_commit = repo.head_commit_hash()?;
         let mut new_env_state = DeployState::new(head_commit);
 

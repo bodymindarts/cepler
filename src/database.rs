@@ -11,12 +11,15 @@ use thiserror::Error;
 
 pub struct Database {
     state: DbState,
-    state_dir: String,
+    state_dir: &'static str,
 }
 
+const STATE_DIR: &str = ".casper";
+
 impl Database {
-    pub fn open(dir: String) -> Result<Self, DatabaseError> {
+    pub fn open() -> Result<Self, DatabaseError> {
         let mut state = DbState::default();
+        let dir = STATE_DIR;
         if Path::new(&dir).is_dir() {
             for path in glob(&format!("{}/*.state", dir))? {
                 let path = path?;
@@ -41,9 +44,10 @@ impl Database {
         &mut self,
         name: String,
         mut env: DeployState,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<String, DatabaseError> {
         let any_dirty = env.files.values().any(|f| f.dirty);
         env.any_dirty = any_dirty;
+        let ret = format!("{}/{}.state", self.state_dir, &name);
         if let Some(state) = self.state.environments.get_mut(&name) {
             std::mem::swap(&mut state.current, &mut env);
             state.history.push_front(env);
@@ -56,7 +60,8 @@ impl Database {
                 },
             );
         }
-        self.persist()
+        self.persist()?;
+        Ok(ret)
     }
 
     fn persist(&self) -> Result<(), DatabaseError> {
