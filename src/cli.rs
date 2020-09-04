@@ -7,7 +7,7 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") {config_file} "Cepler config file")
-        (@arg STATE_FILE: -s --("state") env("CEPLER_STATE") default_value("cepler.state") "Cepler state file")
+        (@arg STATE_DIR: -s --("state") env("CEPLER_STATE") default_value(".cepler") "Cepler state file")
         (@subcommand record =>
             (about: "Record the state of an environment in the statefile")
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
@@ -30,12 +30,12 @@ pub fn run() {
     match matches.subcommand() {
         ("record", Some(sub_matches)) => record(
             sub_matches,
-            matches.value_of("STATE_FILE").unwrap().to_string(),
+            matches.value_of("STATE_DIR").unwrap().to_string(),
             conf_from_matches(&matches),
         ),
         ("prepare", Some(sub_matches)) => prepare(
             sub_matches,
-            matches.value_of("STATE_FILE").unwrap().to_string(),
+            matches.value_of("STATE_DIR").unwrap().to_string(),
             conf_from_matches(&matches),
         ),
         ("concourse", Some(_)) => concourse(conf_from_matches(&matches)),
@@ -51,10 +51,10 @@ fn concourse((conf, _): (Config, String)) {
     println!("{}", Concourse::new(conf).render_pipeline())
 }
 
-fn record(matches: &ArgMatches, state_file: String, config: (Config, String)) {
+fn record(matches: &ArgMatches, state_dir: String, config: (Config, String)) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     if let Some(env) = config.0.environments.get(env) {
-        match Workspace::new(state_file, config.1) {
+        match Workspace::new(state_dir, config.1) {
             Ok(mut ws) => {
                 if let Err(e) = ws.record_env(env) {
                     println!("{}", e);
@@ -73,14 +73,14 @@ fn record(matches: &ArgMatches, state_file: String, config: (Config, String)) {
     }
 }
 
-fn prepare(matches: &ArgMatches, state_file: String, config: (Config, String)) {
+fn prepare(matches: &ArgMatches, state_dir: String, config: (Config, String)) {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let force_clean: bool = matches.is_present("FORCE_CLEAN");
     if force_clean {
         println!("WARNING removing all non-cepler specified files");
     }
     if let Some(env) = config.0.environments.get(env) {
-        match Workspace::new(state_file, config.1) {
+        match Workspace::new(state_dir, config.1) {
             Ok(ws) => {
                 if let Err(e) = ws.prepare(env, force_clean) {
                     println!("{}", e);

@@ -1,4 +1,5 @@
 use super::git::*;
+use glob::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -10,23 +11,29 @@ use thiserror::Error;
 
 pub struct Database {
     state: DbState,
-    state_file: String,
+    state_dir: String,
 }
 
 impl Database {
-    pub fn open(file: String) -> Result<Self, DatabaseError> {
-        let path = Path::new(&file);
-        let state = if path.exists() {
-            let file = File::open(path)?;
-            let reader = BufReader::new(file);
+    pub fn open(dir: String) -> Result<Self, DatabaseError> {
+        let mut state = DbState::default();
+        if Path::new(&dir).is_dir() {
+            for path in glob(&format!("{}/*.state", dir))? {
+                let path = path?;
+                if let Some(name) = path.as_path().file_stem() {
+                    let file = File::open(&path)?;
+                    let reader = BufReader::new(file);
+                    state.environments.insert(
+                        name.to_str().expect("Convert name").to_string(),
+                        EnvironmentState::from_reader(reader)?,
+                    );
+                }
+            }
+        }
 
-            DbState::from_reader(reader)?
-        } else {
-            DbState::default()
-        };
         Ok(Self {
             state,
-            state_file: file,
+            state_dir: dir,
         })
     }
 
@@ -53,9 +60,14 @@ impl Database {
     }
 
     fn persist(&self) -> Result<(), DatabaseError> {
+        use std::fs;
         use std::io::Write;
-        let mut file = File::create(&self.state_file)?;
-        file.write_all(&serde_yaml::to_vec(&self.state)?)?;
+        let _ = fs::remove_dir_all(&self.state_dir);
+        fs::create_dir(&self.state_dir)?;
+        for (name, env) in self.state.environments.iter() {
+            let mut file = File::create(&format!("{}/{}.state", self.state_dir, name))?;
+            file.write_all(&serde_yaml::to_vec(&env)?)?;
+        }
         Ok(())
     }
 
@@ -100,19 +112,19 @@ struct DbState {
     environments: BTreeMap<String, EnvironmentState>,
 }
 
-impl DbState {
-    fn from_reader(reader: impl Read) -> Result<Self, DatabaseError> {
-        let state = serde_yaml::from_reader(reader)?;
-        Ok(state)
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnvironmentState {
     current: DeployState,
     #[serde(skip_serializing_if = "VecDeque::is_empty")]
     #[serde(default)]
     history: VecDeque<DeployState>,
+}
+
+impl EnvironmentState {
+    fn from_reader(reader: impl Read) -> Result<Self, DatabaseError> {
+        let state = serde_yaml::from_reader(reader)?;
+        Ok(state)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -160,6 +172,10 @@ pub enum DatabaseError {
     CouldNotOpen(#[from] std::io::Error),
     #[error("Error interfacing with git: '{0}'")]
     GitError(String),
+    #[error("{0}")]
+    PatternError(#[from] PatternError),
+    #[error("{0}")]
+    GlobError(#[from] GlobError),
 }
 
 impl From<git2::Error> for DatabaseError {
