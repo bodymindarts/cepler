@@ -1,0 +1,9 @@
+jobs:
+{{~#each jobs}}
+{{> job this }}
+{{~/each}}
+
+resources:
+{{~#each resources}}
+{{> resource this }}
+{{~/each}}

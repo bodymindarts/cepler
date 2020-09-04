@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use glob::*;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
@@ -8,10 +8,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub environments: HashMap<String, EnvironmentConfig>,
     pub hook: HookConf,
+    pub concourse: Option<ConcourseConfig>,
 }
 
 impl Config {
@@ -38,14 +39,14 @@ impl Config {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct HookConf {
     pub cmd: String,
     #[serde(default)]
     pub args: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct EnvironmentConfig {
     #[serde(default)]
     pub name: String,
@@ -78,9 +79,25 @@ impl EnvironmentConfig {
             .map(|res| res.expect("Couldn't list file"))
     }
 
+    pub fn propagated_filters(&self) -> &[String] {
+        &self.propagated_files
+    }
+
     pub fn head_filters(&self) -> &[String] {
         &self.head_files
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ConcourseConfig {
+    pub repo: RepoConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RepoConfig {
+    pub uri: String,
+    pub branch: String,
+    pub private_key: String,
 }
 
 #[cfg(test)]

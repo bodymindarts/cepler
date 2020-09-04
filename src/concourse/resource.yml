@@ -1,0 +1,10 @@
+- name: {{name}}
+  type: git
+  source:
+    uri: {{repo_uri}}
+    paths:
+{{~#each paths}}
+    - {{this}}
+{{~/each}}
+    branch: {{branch}}
+    private_key: {{github_private_key}}

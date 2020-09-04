@@ -1,4 +1,4 @@
-use super::{config::Config, workspace::Workspace};
+use super::{concourse::Concourse, config::Config, workspace::Workspace};
 use clap::{clap_app, crate_version, App, ArgMatches};
 
 fn app() -> App<'static, 'static> {
@@ -19,6 +19,9 @@ fn app() -> App<'static, 'static> {
         (@subcommand hook =>
             (about: "Execute the hook")
         )
+        (@subcommand concourse =>
+            (about: "Render a concourse pipeline")
+        )
     );
 
     app
@@ -38,6 +41,7 @@ pub fn run() {
             matches.value_of("STATE_FILE").unwrap().to_string(),
             conf_from_matches(&matches),
         ),
+        ("concourse", Some(_)) => concourse(conf_from_matches(&matches)),
         _ => unreachable!(),
     }
 }
@@ -56,6 +60,14 @@ fn hook(conf: Config) {
         Some(code) => println!("Exited with status code: '{}'", code),
         None => println!("Process terminated by signal"),
     }
+}
+
+fn concourse(conf: Config) {
+    if conf.concourse.is_none() {
+        eprintln!("concourse: key not specified");
+        std::process::exit(1);
+    }
+    println!("{}", Concourse::new(conf).render_pipeline())
 }
 
 fn record(matches: &ArgMatches, state_file: String, config: Config) {
