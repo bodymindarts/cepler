@@ -19,29 +19,18 @@ set -x
 environment=$(jq -r '.source.environment // ""' < $payload)
 deployment_no=$(jq -r '.version.deployment_no // ""' < $payload)
 
-destination=$TMPDIR/cepler-resource-repo-cache
+destination=${1}
 
 set +e
 next_deployment_no=$(cepler --clone ${destination} check -e ${environment})
 res=$?
 set -e
+if [[ "${next_deployment_no}" != "${deployment_no}" ]]; then
+  echo "Cannot fetch 'deployment_no ${deployment_no}' - Next 'deployment_no ${next_deployment_no}'"
+  exit 1
+fi
 
-{
-  if [[ $res != 0 ]]; then
-    if [[ $res == 1 ]]; then
-      echo "[]"
-    else
-      if [[ "${deployment_no}" != "" ]]; then
-        echo "[ { \"deployment_no\": \"${deployment_no}\" } ]"
-      else
-        echo "[]"
-      fi
-    fi
-  else
-    if [[ "${deployment_no}" != "" ]]; then
-      echo "[ { \"deployment_no\": \"${deployment_no}\" }, { \"deployment_no\": \"${next_deployment_no}\" } ]"
-    else
-      echo "[ { \"deployment_no\": \"${next_deployment_no}\" } ]"
-    fi
-  fi
-} >&3
+cd ${destination}
+cepler prepare -e ${environment} --force-clean
+
+echo "{ \"version\": { \"deployment_no\": \"${deployment_no}\" } }" >&3

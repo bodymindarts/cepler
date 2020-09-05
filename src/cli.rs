@@ -8,9 +8,9 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
+        (@arg CLONE_DIR: -c --("clone") +takes_value "Clone the repository into <dir>")
         (@subcommand check =>
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
-            (@arg CLONE_DIR: -c --("clone") +takes_value "Clone the repository into <dir>")
         )
         (@subcommand record =>
             (about: "Record the state of an environment in the statefile")
@@ -32,6 +32,16 @@ fn app() -> App<'static, 'static> {
 
 pub fn run() -> Result<()> {
     let matches = app().get_matches();
+    if let Some(dir) = matches.value_of("CLONE_DIR") {
+        let path = std::path::Path::new(&dir);
+        if !path.exists() || path.read_dir()?.next().is_none() {
+            Repo::clone(path)?;
+            std::env::set_current_dir(dir)?;
+        } else {
+            std::env::set_current_dir(dir)?;
+            Repo::open()?.pull()?;
+        }
+    }
     match matches.subcommand() {
         ("check", Some(sub_matches)) => check(sub_matches, &matches),
         ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
@@ -43,17 +53,6 @@ pub fn run() -> Result<()> {
 
 fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
-    if let Some(dir) = matches.value_of("CLONE_DIR") {
-        use std::path::Path;
-        let path = Path::new(&dir);
-        if !path.exists() {
-            Repo::clone(path)?;
-            std::env::set_current_dir(dir)?;
-        } else {
-            std::env::set_current_dir(dir)?;
-            Repo::open()?.pull()?;
-        }
-    }
     let config = conf_from_matches(main_matches)?;
     let ws = Workspace::new(config.1)?;
     let env = config
