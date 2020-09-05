@@ -3,8 +3,8 @@ jobs:
 {{> job this }}
 {{/each ~}}
 resources:
-{{#each cepler_resources ~}}
-{{> cepler_resource this }}
+{{#each resources ~}}
+{{> resource this }}
 {{/each ~}}
 resource_types:
 - name: cepler

@@ -8,7 +8,7 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
-        (@arg CLONE_DIR: -c --("clone") +takes_value "Clone the repository into <dir>")
+        (@arg CLONE_DIR: --("clone") +takes_value "Clone the repository into <dir>")
         (@subcommand check =>
             (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
         )

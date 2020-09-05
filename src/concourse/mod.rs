@@ -4,8 +4,8 @@ use serde::*;
 
 const BASE_TEMPLATE: &str = include_str!("base.yml");
 const BASE_TEMPLATE_NAME: &str = "base";
-const CEPLER_RESOURCE_PARTIAL: &str = include_str!("cepler-resource.yml");
-const CEPLER_RESOURCE_PARTIAL_NAME: &str = "cepler_resource";
+const RESOURCE_PARTIAL: &str = include_str!("resource.yml");
+const RESOURCE_PARTIAL_NAME: &str = "resource";
 const JOB_PARTIAL: &str = include_str!("job.yml");
 const JOB_PARTIAL_NAME: &str = "job";
 const USER_IMAGE_RESOURCE: &str = "user_image_resource";
@@ -20,7 +20,7 @@ impl Concourse {
     pub fn new(config: Config) -> Self {
         let mut handlebars = Handlebars::new();
         handlebars
-            .register_partial(CEPLER_RESOURCE_PARTIAL_NAME, CEPLER_RESOURCE_PARTIAL)
+            .register_partial(RESOURCE_PARTIAL_NAME, RESOURCE_PARTIAL)
             .unwrap();
         handlebars
             .register_partial(JOB_PARTIAL_NAME, JOB_PARTIAL)
@@ -44,11 +44,10 @@ impl Concourse {
     }
 
     pub fn render_pipeline(&self) -> String {
-        let (cepler_resources, git_resources) = self.get_resources();
+        let resources = self.get_resources();
         let data = ConcourseData {
             jobs: self.get_jobs(),
-            cepler_resources,
-            git_resources,
+            resources,
         };
         self.handlebars.render(BASE_TEMPLATE_NAME, &data).unwrap()
     }
@@ -69,26 +68,24 @@ impl Concourse {
         jobs
     }
 
-    fn get_resources(&self) -> (Vec<CeplerResource>, Vec<GitResource>) {
+    fn get_resources(&self) -> Vec<Resource> {
         let repo = self.repo_conf();
-        let mut cepler_resources = Vec::new();
-        let mut git_resources = Vec::new();
+        let mut resources = Vec::new();
         for env in self.environments() {
-            cepler_resources.push(CeplerResource {
+            resources.push(Resource {
                 name: env.name.clone(),
+                r#type: "cepler",
                 repo_uri: &repo.uri,
                 branch: &repo.branch,
                 git_private_key: &repo.private_key,
             });
-            // if !env.head_filters().is_empty() {
-            //     resources.push(Resource {
-            //         name: head_resource_name(env),
-            //         repo_uri: &repo.uri,
-            //         branch: &repo.branch,
-            //         paths: Some(env.head_filters()),
-            //         git_private_key: &repo.private_key,
-            //     });
-            // }
+            resources.push(Resource {
+                name: format!("{}-branch", env.name),
+                r#type: "git",
+                repo_uri: &repo.uri,
+                branch: &env.name,
+                git_private_key: &repo.private_key,
+            });
         }
         // resources.push(Resource {
         //     name: "repo".to_string(),
@@ -96,7 +93,7 @@ impl Concourse {
         //     branch: &repo.branch,
         //     git_private_key: &repo.private_key,
         // });
-        (cepler_resources, git_resources)
+        resources
     }
 
     fn environments(&self) -> impl Iterator<Item = &EnvironmentConfig> {
@@ -143,8 +140,7 @@ fn user_run(run: &serde_yaml::Value) -> String {
 #[derive(Debug, Serialize)]
 struct ConcourseData<'a> {
     jobs: Vec<JobData<'a>>,
-    git_resources: Vec<GitResource<'a>>,
-    cepler_resources: Vec<CeplerResource<'a>>,
+    resources: Vec<Resource<'a>>,
 }
 #[derive(Debug, Serialize)]
 struct JobData<'a> {
@@ -156,16 +152,9 @@ struct JobData<'a> {
     git_private_key: &'a str,
 }
 #[derive(Debug, Serialize)]
-struct GitResource<'a> {
+struct Resource<'a> {
     name: String,
-    repo_uri: &'a str,
-    branch: &'a str,
-    git_private_key: &'a str,
-}
-
-#[derive(Debug, Serialize)]
-struct CeplerResource<'a> {
-    name: String,
+    r#type: &'static str,
     repo_uri: &'a str,
     branch: &'a str,
     git_private_key: &'a str,

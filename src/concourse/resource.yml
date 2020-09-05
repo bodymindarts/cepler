@@ -1,5 +1,5 @@
 - name: {{name}}
-  type: cepler
+  type: {{type}}
   source:
     uri: {{repo_uri}}
     branch: {{branch}}
