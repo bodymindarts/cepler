@@ -1,4 +1,4 @@
-use super::{concourse::Concourse, config::Config, git::Repo, workspace::Workspace};
+use super::{concourse::Concourse, config::Config, repo::Repo, workspace::Workspace};
 use anyhow::*;
 use clap::{clap_app, crate_version, App, ArgMatches};
 

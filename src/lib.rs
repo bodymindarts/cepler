@@ -4,7 +4,7 @@
 mod concourse;
 mod config;
 mod database;
-mod git;
+mod repo;
 mod workspace;
 
 pub mod cli;

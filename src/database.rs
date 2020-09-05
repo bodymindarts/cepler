@@ -1,4 +1,4 @@
-use super::git::*;
+use super::repo::*;
 use anyhow::*;
 use glob::*;
 use serde::{Deserialize, Serialize};

@@ -1,4 +1,4 @@
-use super::{config::EnvironmentConfig, database::*, git::*};
+use super::{config::EnvironmentConfig, database::*, repo::*};
 use anyhow::*;
 
 pub struct Workspace {
