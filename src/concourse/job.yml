@@ -15,10 +15,44 @@
       run:
         dir: repo
 {{> user_run }}
-  - put: repo
-    params:
-      repository: repo
-      rebase: true
-  - put: {{name}}-branch
-    params:
-      repository: repo
+  - task: record-state
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: bodymindarts/cepler
+          tag: latest
+      inputs:
+      - name: repo
+      outputs:
+      - name: repo
+      run:
+        path: cepler
+        args: ["record", "-e", "{{name}}"]
+        dir: repo
+  - task: prepare-push
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: bodymindarts/cepler
+          tag: latest
+      inputs:
+      - name: repo
+      outputs:
+      - name: repo
+      run:
+        path: git
+        args: ["reset", "--hard", "HEAD"]
+        dir: repo
+  - in_parallel:
+    - put: repo
+      params:
+        repository: repo
+        rebase: true
+    - put: {{name}}-branch
+      params:
+        repository: repo
+        rebase: true
