@@ -101,9 +101,6 @@ impl Concourse {
     }
 }
 
-fn head_resource_name(env: &EnvironmentConfig) -> String {
-    format!("{}-head", env.name)
-}
 fn user_image_resource(image: &serde_yaml::Value) -> String {
     let mut res = String::new();
     for line in serde_yaml::to_string(&image)
