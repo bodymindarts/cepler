@@ -47,12 +47,7 @@
         path: git
         args: ["reset", "--hard", "HEAD"]
         dir: repo
-  - in_parallel:
-    - put: repo
-      params:
-        repository: repo
-        rebase: true
-    - put: {{name}}-branch
-      params:
-        repository: repo
-        rebase: true
+  - put: repo
+    params:
+      repository: repo
+      rebase: true

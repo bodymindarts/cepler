@@ -79,13 +79,6 @@ impl Concourse {
                 branch: &repo.branch,
                 git_private_key: &repo.private_key,
             });
-            resources.push(Resource {
-                name: format!("{}-branch", env.name),
-                r#type: "git",
-                repo_uri: &repo.uri,
-                branch: &env.name,
-                git_private_key: &repo.private_key,
-            });
         }
         resources.push(Resource {
             name: "repo".to_string(),
