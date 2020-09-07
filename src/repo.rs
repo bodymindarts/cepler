@@ -157,12 +157,8 @@ impl Repo {
     }
 
     pub fn checkout_head(&self, filters: Option<&[String]>, ignore_files: Vec<&str>) -> Result<()> {
-        let mut checkout = CheckoutBuilder::new();
-        self.inner.reset(
-            self.head_commit().as_object(),
-            ResetType::Hard,
-            Some(&mut checkout),
-        )?;
+        self.inner
+            .reset(self.head_commit().as_object(), ResetType::Hard, None)?;
         if let Some(filters) = filters {
             let mut ignore_os_files: HashSet<_> = ignore_files.iter().map(OsStr::new).collect();
             ignore_os_files.insert(OsStr::new(".git"));

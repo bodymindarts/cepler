@@ -21,6 +21,7 @@ fn app() -> App<'static, 'static> {
           (about: "Record the state of an environment in the statefile")
           (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
           (@arg NO_COMMIT: --("no-commit") "Don't commit the new state")
+          (@arg RESET_HEAD: --("reset-head") "Checkout files to head after committing the state")
         )
         (@subcommand prepare =>
           (about: "Prepare workspace for hook execution")
@@ -111,13 +112,14 @@ fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
 fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let commit: bool = !matches.is_present("NO_COMMIT");
+    let reset: bool = matches.is_present("RESET_HEAD");
     let env = config
         .0
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
     let mut ws = Workspace::new(config.1)?;
-    ws.record_env(env, commit)?;
+    ws.record_env(env, commit, reset)?;
     Ok(())
 }
 

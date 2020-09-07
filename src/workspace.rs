@@ -57,7 +57,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn record_env(&mut self, env: &EnvironmentConfig, commit: bool) -> Result<()> {
+    pub fn record_env(&mut self, env: &EnvironmentConfig, commit: bool, reset: bool) -> Result<()> {
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
         let state_file = self
@@ -65,6 +65,9 @@ impl Workspace {
             .set_current_environment_state(env.name.clone(), new_env_state)?;
         if commit {
             repo.commit_state_file(state_file)?;
+        }
+        if reset {
+            repo.checkout_head(None, Vec::new())?;
         }
         Ok(())
     }
