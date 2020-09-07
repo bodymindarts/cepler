@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cepler concourse ci_out $@ <&0

@@ -4,6 +4,7 @@ mod gen;
 
 pub mod check;
 pub mod ci_in;
+pub mod ci_out;
 pub use gen::ConcourseGen;
 
 #[derive(Debug, Deserialize)]
