@@ -9,6 +9,8 @@ pub use gen::ConcourseGen;
 
 #[derive(Debug, Deserialize)]
 struct ResourceConfig {
+    #[serde(default)]
+    params: Option<OutParams>,
     source: Source,
     version: Option<Version>,
 }
@@ -24,6 +26,11 @@ struct Source {
 #[derive(Debug, Deserialize, Serialize)]
 struct Version {
     deployment_no: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OutParams {
+    repo: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

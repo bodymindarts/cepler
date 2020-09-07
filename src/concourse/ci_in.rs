@@ -1,19 +1,23 @@
 use super::*;
 use crate::{config::Config, repo::*, workspace::Workspace};
 use anyhow::*;
-use std::{env, io, path};
+use std::{io, path};
 
 pub fn exec(destination: &str) -> Result<()> {
-    let ResourceConfig { source, version }: ResourceConfig =
-        serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
+    let ResourceConfig {
+        source, version, ..
+    }: ResourceConfig = serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     eprintln!("Cloning repo to '{}'", destination);
     let version = version.expect("No version specified");
+    let conf = GitConfig {
+        url: source.uri,
+        branch: source.branch.clone(),
+        private_key: source.private_key,
+        dir: destination.to_string(),
+    };
 
-    env::set_var(GIT_URL, source.uri);
-    env::set_var(GIT_BRANCH, &source.branch);
-    env::set_var(GIT_PRIVATE_KEY, source.private_key);
     let path = path::Path::new(&destination);
-    let repo = Repo::clone(path).context("Couldn't clone repo")?;
+    let repo = Repo::clone(conf).context("Couldn't clone repo")?;
     std::env::set_current_dir(path)?;
     eprintln!(
         "HEAD of branch '{}' is now at: '{}'",

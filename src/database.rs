@@ -44,13 +44,14 @@ impl Database {
         &mut self,
         name: String,
         mut env: DeployState,
-    ) -> Result<String> {
+    ) -> Result<(String, usize)> {
         let any_dirty = env.files.values().any(|f| f.dirty);
         env.any_dirty = any_dirty;
         let ret = format!("{}/{}.state", self.state_dir, &name);
-        if let Some(state) = self.state.environments.get_mut(&name) {
+        let deployment = if let Some(state) = self.state.environments.get_mut(&name) {
             std::mem::swap(&mut state.current, &mut env);
             state.history.push_front(env);
+            state.history.len() + 1
         } else {
             self.state.environments.insert(
                 name,
@@ -59,9 +60,10 @@ impl Database {
                     history: VecDeque::new(),
                 },
             );
-        }
+            1
+        };
         self.persist()?;
-        Ok(ret)
+        Ok((ret, deployment))
     }
 
     pub fn get_target_propagated_state(

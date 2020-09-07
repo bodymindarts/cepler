@@ -57,19 +57,32 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn record_env(&mut self, env: &EnvironmentConfig, commit: bool, reset: bool) -> Result<()> {
+    pub fn record_env(
+        &mut self,
+        env: &EnvironmentConfig,
+        commit: bool,
+        reset: bool,
+        git_config: Option<GitConfig>,
+    ) -> Result<usize> {
+        eprintln!("Recording current state");
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
-        let state_file = self
+        let (state_file, deployment) = self
             .db
             .set_current_environment_state(env.name.clone(), new_env_state)?;
         if commit {
+            eprintln!("Adding commit to repository to persist state");
             repo.commit_state_file(state_file)?;
         }
         if reset {
+            eprintln!("Reseting head to have a clean workspace");
             repo.checkout_head(None, Vec::new())?;
         }
-        Ok(())
+        if let Some(config) = git_config {
+            eprintln!("Pushing to remote");
+            repo.push(config)?;
+        }
+        Ok(deployment)
     }
 
     fn construct_env_state(

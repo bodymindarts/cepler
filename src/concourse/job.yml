@@ -15,23 +15,6 @@
       run:
         dir: repo
 {{> user_run }}
-  - task: record-state
-    config:
-      platform: linux
-      image_resource:
-        type: registry-image
-        source:
-          repository: bodymindarts/cepler
-          tag: latest
-      inputs:
-      - name: repo
-      outputs:
-      - name: repo
-      run:
-        path: cepler
-        args: ["record", "-e", "{{name}}", "--reset-head"]
-        dir: repo
-  - put: repo
+  - put: {{name}}
     params:
-      repository: repo
-      rebase: true
+      repo: repo

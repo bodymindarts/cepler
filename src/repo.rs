@@ -1,7 +1,7 @@
 use anyhow::*;
 use git2::{
-    build::CheckoutBuilder, Commit, Cred, ObjectType, Oid, RemoteCallbacks, Repository, ResetType,
-    Signature,
+    build::CheckoutBuilder, Commit, Cred, MergeOptions, ObjectType, Oid, PushOptions,
+    RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature,
 };
 use glob::*;
 use serde::{Deserialize, Serialize};
@@ -32,18 +32,45 @@ pub fn hash_file<P: AsRef<Path>>(file: P) -> FileHash {
     )
 }
 
+pub struct GitConfig {
+    pub url: String,
+    pub branch: String,
+    pub private_key: String,
+    pub dir: String,
+}
 pub struct Repo {
     inner: Repository,
 }
 
-pub const GIT_URL: &str = "GIT_URL";
-pub const GIT_BRANCH: &str = "GIT_BRANCH";
-pub const GIT_PRIVATE_KEY: &str = "GIT_PRIVATE_KEY";
-
 impl Repo {
-    pub fn pull(&self) -> Result<()> {
-        let (_, callbacks) = remote_callbacks()?;
-        let branch = std::env::var(GIT_BRANCH).unwrap_or_else(|_| "main".to_string());
+    pub fn clone(
+        GitConfig {
+            url,
+            branch,
+            private_key,
+            dir,
+        }: GitConfig,
+    ) -> Result<Self> {
+        let callbacks = remote_callbacks(private_key)?;
+        let mut fo = git2::FetchOptions::new();
+        fo.remote_callbacks(callbacks);
+
+        let mut builder = git2::build::RepoBuilder::new();
+        builder.fetch_options(fo);
+        builder.branch(&branch);
+        let inner = builder.clone(&url, Path::new(&dir))?;
+        Ok(Self { inner })
+    }
+
+    pub fn pull(
+        &self,
+        GitConfig {
+            branch,
+            private_key,
+            ..
+        }: GitConfig,
+    ) -> Result<()> {
+        let callbacks = remote_callbacks(private_key)?;
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
@@ -61,17 +88,55 @@ impl Repo {
         Ok(())
     }
 
-    pub fn clone(dir: &Path) -> Result<Self> {
-        let (url, callbacks) = remote_callbacks()?;
-        let branch = std::env::var(GIT_BRANCH).unwrap_or_else(|_| "main".to_string());
+    pub fn push(
+        &self,
+        GitConfig {
+            branch,
+            private_key,
+            ..
+        }: GitConfig,
+    ) -> Result<()> {
+        let callbacks = remote_callbacks(private_key.clone())?;
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
+        let mut remote = self.inner.find_remote("origin")?;
+        remote.fetch(&[branch.clone()], Some(&mut fo), None)?;
 
-        let mut builder = git2::build::RepoBuilder::new();
-        builder.fetch_options(fo);
-        builder.branch(&branch);
-        let inner = builder.clone(&url, dir)?;
-        Ok(Self { inner })
+        let head_commit = self
+            .inner
+            .reference_to_annotated_commit(&self.inner.head()?)?;
+        let remote_ref = self
+            .inner
+            .resolve_reference_from_short_name(&format!("origin/{}", branch))?;
+        let remote_commit = self.inner.reference_to_annotated_commit(&remote_ref)?;
+        let mut rebase_options = RebaseOptions::new();
+        let mut merge_options = MergeOptions::new();
+        merge_options.fail_on_conflict(true);
+        rebase_options.merge_options(merge_options);
+        let mut rebase = self.inner.rebase(
+            Some(&head_commit),
+            Some(&remote_commit),
+            None,
+            Some(&mut rebase_options),
+        )?;
+        let sig = Signature::now("Cepler", "bot@cepler.io")?;
+        while let Some(op) = rebase.next() {
+            rebase.commit(None, &sig, None)?;
+            eprintln!("Operation: {:?}", op.as_ref().unwrap().kind());
+            eprintln!("Operation: {:?}", op.unwrap().id());
+        }
+        rebase.finish(None)?;
+        let mut push_options = PushOptions::new();
+        push_options.remote_callbacks(remote_callbacks(private_key)?);
+        remote.push(
+            &[format!(
+                "{}:{}",
+                head_commit.refname().unwrap(),
+                head_commit.refname().unwrap()
+            )],
+            Some(&mut push_options),
+        )?;
+        Ok(())
     }
 
     pub fn open() -> Result<Self> {
@@ -86,7 +151,7 @@ impl Repo {
         index.add_path(&path)?;
         let oid = index.write_tree()?;
         let tree = self.inner.find_tree(oid)?;
-        let sig = Signature::now("Casper", "bot@casper.io")?;
+        let sig = Signature::now("Cepler", "bot@cepler.io")?;
         self.inner.commit(
             Some("HEAD"),
             &sig,
@@ -232,21 +297,10 @@ impl Repo {
     }
 }
 
-fn remote_callbacks() -> Result<(String, RemoteCallbacks<'static>)> {
-    use std::env;
-    let (url, key) = match (env::var(GIT_URL), env::var(GIT_PRIVATE_KEY)) {
-        (Ok(url), Ok(key)) => (url, key),
-        _ => {
-            return Err(anyhow!(
-                "Vars '{}' and '{}' must be set in order to clone",
-                GIT_URL,
-                GIT_PRIVATE_KEY
-            ));
-        }
-    };
+fn remote_callbacks(key: String) -> Result<RemoteCallbacks<'static>> {
     let mut callbacks = RemoteCallbacks::new();
     callbacks.credentials(move |_url, username_from_url, _allowed_types| {
         Cred::ssh_key_from_memory(username_from_url.unwrap(), None, &key, None)
     });
-    Ok((url, callbacks))
+    Ok(callbacks)
 }

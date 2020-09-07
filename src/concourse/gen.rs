@@ -80,13 +80,6 @@ impl ConcourseGen {
                 git_private_key: &repo.private_key,
             });
         }
-        resources.push(Resource {
-            name: "repo".to_string(),
-            r#type: "git",
-            repo_uri: &repo.uri,
-            branch: &repo.branch,
-            git_private_key: &repo.private_key,
-        });
         resources
     }
 
