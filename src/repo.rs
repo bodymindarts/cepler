@@ -120,10 +120,8 @@ impl Repo {
             Some(&mut rebase_options),
         )?;
         let sig = Signature::now("Cepler", "bot@cepler.io")?;
-        while let Some(op) = rebase.next() {
+        while let Some(_) = rebase.next() {
             rebase.commit(None, &sig, None)?;
-            eprintln!("Operation: {:?}", op.as_ref().unwrap().kind());
-            eprintln!("Operation: {:?}", op.unwrap().id());
         }
         rebase.finish(None)?;
         let mut push_options = PushOptions::new();
