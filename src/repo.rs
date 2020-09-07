@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::{
     collections::{HashSet, VecDeque},
+    fmt,
     path::{Path, PathBuf},
 };
 
@@ -17,6 +18,11 @@ pub struct FileHash(String);
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct CommitHash(String);
+impl fmt::Display for CommitHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.chars().take(7).collect::<String>())
+    }
+}
 
 pub fn hash_file<P: AsRef<Path>>(file: P) -> FileHash {
     FileHash(
@@ -30,9 +36,9 @@ pub struct Repo {
     inner: Repository,
 }
 
-const GIT_URL: &str = "GIT_URL";
-const GIT_BRANCH: &str = "GIT_BRANCH";
-const GIT_PRIVATE_KEY: &str = "GIT_PRIVATE_KEY";
+pub const GIT_URL: &str = "GIT_URL";
+pub const GIT_BRANCH: &str = "GIT_BRANCH";
+pub const GIT_PRIVATE_KEY: &str = "GIT_PRIVATE_KEY";
 
 impl Repo {
     pub fn pull(&self) -> Result<()> {
@@ -55,7 +61,7 @@ impl Repo {
         Ok(())
     }
 
-    pub fn clone(dir: &Path) -> Result<()> {
+    pub fn clone(dir: &Path) -> Result<Self> {
         let (url, callbacks) = remote_callbacks()?;
         let branch = std::env::var(GIT_BRANCH).unwrap_or_else(|_| "main".to_string());
         let mut fo = git2::FetchOptions::new();
@@ -64,8 +70,8 @@ impl Repo {
         let mut builder = git2::build::RepoBuilder::new();
         builder.fetch_options(fo);
         builder.branch(&branch);
-        builder.clone(&url, dir)?;
-        Ok(())
+        let inner = builder.clone(&url, dir)?;
+        Ok(Self { inner })
     }
 
     pub fn open() -> Result<Self> {

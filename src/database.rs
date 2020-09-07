@@ -162,17 +162,27 @@ impl DeployState {
     }
 
     pub fn equivalent(&self, other: &Self) -> bool {
-        if self.any_dirty || other.any_dirty || self.files.len() != other.files.len() {
+        if self.any_dirty || other.any_dirty {
+            eprintln!("Cannot determin state equivalence due to dirty state");
+            false
+        } else if self.files.len() != other.files.len() {
+            if self.files.len() - other.files.len() > 0 {
+                eprintln!("Some files were removed");
+            } else {
+                eprintln!("Some files were added");
+            }
             false
         } else {
+            let mut res = true;
             for ((my_name, my_state), (other_name, other_state)) in
                 self.files.iter().zip(other.files.iter())
             {
                 if my_name != other_name || my_state.file_hash != other_state.file_hash {
-                    return false;
+                    eprintln!("File {} has changed", my_name);
+                    res = false;
                 }
             }
-            true
+            res
         }
     }
 }

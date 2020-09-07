@@ -1,4 +1,9 @@
-use super::{concourse::Concourse, config::Config, repo::Repo, workspace::Workspace};
+use super::{
+    concourse::{self, ConcourseGen},
+    config::Config,
+    repo::Repo,
+    workspace::Workspace,
+};
 use anyhow::*;
 use clap::{clap_app, crate_version, App, ArgMatches};
 
@@ -10,21 +15,28 @@ fn app() -> App<'static, 'static> {
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
         (@arg CLONE_DIR: --("clone") +takes_value "Clone the repository into <dir>")
         (@subcommand check =>
-            (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+          (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
         )
         (@subcommand record =>
-            (about: "Record the state of an environment in the statefile")
-            (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
-            (@arg NO_COMMIT: --("no-commit") "Don't commit the new state")
+          (about: "Record the state of an environment in the statefile")
+          (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+          (@arg NO_COMMIT: --("no-commit") "Don't commit the new state")
         )
         (@subcommand prepare =>
-            (about: "Prepare workspace for hook execution")
-            (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
-            (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
+          (about: "Prepare workspace for hook execution")
+          (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+          (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
         )
         (@subcommand concourse =>
-            (about: "Render a concourse pipeline")
-        )
+         (@setting SubcommandRequiredElseHelp)
+         (about: "Subcommand for concourse integration")
+         (@subcommand gen =>
+          (about: "Generate a concourse pipeline")
+         )
+         (@subcommand check =>
+          (about: "The check command for the concourse resource")
+         )
+      )
     );
 
     app
@@ -46,7 +58,11 @@ pub fn run() -> Result<()> {
         ("check", Some(sub_matches)) => check(sub_matches, &matches),
         ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
-        ("concourse", Some(_)) => concourse(conf_from_matches(&matches)?),
+        ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
+            ("gen", Some(_)) => concourse_gen(conf_from_matches(&matches)?),
+            ("check", Some(_)) => concourse_check(),
+            _ => unreachable!(),
+        },
         _ => unreachable!(),
     }
 }
@@ -60,11 +76,13 @@ fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
-    match ws.check(env) {
-        Ok(deployment_no) => println!("{}", deployment_no),
-        Err(e) => {
-            eprintln!("{}", e);
+    match ws.check(env)? {
+        None => {
+            println!("Nothing new to deploy");
             std::process::exit(2);
+        }
+        Some(_) => {
+            println!("Found new state to deploy");
         }
     }
     Ok(())
@@ -98,12 +116,15 @@ fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     Ok(())
 }
 
-fn concourse((conf, _): (Config, String)) -> Result<()> {
+fn concourse_gen((conf, _): (Config, String)) -> Result<()> {
     if conf.concourse.is_none() {
         return Err(anyhow!("concourse: key not specified"));
     }
-    println!("{}", Concourse::new(conf).render_pipeline());
+    println!("{}", ConcourseGen::new(conf).render_pipeline());
     Ok(())
+}
+fn concourse_check() -> Result<()> {
+    concourse::check::exec()
 }
 
 fn conf_from_matches(matches: &ArgMatches) -> Result<(Config, String)> {
