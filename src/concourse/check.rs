@@ -1,11 +1,11 @@
+use super::*;
 use crate::{config::Config, repo::*, workspace::Workspace};
 use anyhow::*;
-use serde::{Deserialize, Serialize};
 use std::{env, io, path};
 
 const TMPDIR: &str = "TMPDIR";
 pub fn exec() -> Result<()> {
-    let Check { source, version }: Check =
+    let ResourceConfig { source, version }: ResourceConfig =
         serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     eprintln!(
         "Last deployment no: '{}', checking if we can deploy a newer version",
@@ -67,27 +67,4 @@ pub fn exec() -> Result<()> {
     }
     println!("{}", serde_json::to_string(&res)?);
     Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-struct Check {
-    source: Source,
-    version: Option<Version>,
-}
-#[derive(Debug, Deserialize)]
-struct Source {
-    uri: String,
-    branch: String,
-    private_key: String,
-    environment: String,
-    #[serde(default = "default_config_path")]
-    config: String,
-}
-#[derive(Debug, Deserialize, Serialize)]
-struct Version {
-    deployment_no: String,
-}
-
-fn default_config_path() -> String {
-    "cepler.yml".to_string()
 }

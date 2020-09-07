@@ -16,9 +16,10 @@ impl Workspace {
     pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<usize>> {
         let repo = Repo::open()?;
         if let Some(previous_env) = env.propagated_from() {
-            self.db
-                .get_current_state(&previous_env)
-                .context("Previous environment not deployed yet")?;
+            self.db.get_current_state(&previous_env).context(format!(
+                "Previous environment '{}' not deployed yet",
+                previous_env
+            ))?;
         }
         let new_env_state = self.construct_env_state(&repo, env)?;
         if let Some((last, deployment_no)) = self.db.get_current_state(&env.name) {

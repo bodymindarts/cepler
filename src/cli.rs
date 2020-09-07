@@ -36,6 +36,10 @@ fn app() -> App<'static, 'static> {
          (@subcommand check =>
           (about: "The check command for the concourse resource")
          )
+         (@subcommand ci_in =>
+          (about: "The in command for the concourse resource")
+          (@arg DESTINATION: * "The destination to put the resource")
+         )
       )
     );
 
@@ -61,6 +65,7 @@ pub fn run() -> Result<()> {
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
             ("gen", Some(_)) => concourse_gen(conf_from_matches(&matches)?),
             ("check", Some(_)) => concourse_check(),
+            ("ci_in", Some(matches)) => concourse_in(&matches),
             _ => unreachable!(),
         },
         _ => unreachable!(),
@@ -125,6 +130,11 @@ fn concourse_gen((conf, _): (Config, String)) -> Result<()> {
 }
 fn concourse_check() -> Result<()> {
     concourse::check::exec()
+}
+
+fn concourse_in(matches: &ArgMatches) -> Result<()> {
+    let destination = matches.value_of("DESTINATION").unwrap();
+    concourse::ci_in::exec(destination)
 }
 
 fn conf_from_matches(matches: &ArgMatches) -> Result<(Config, String)> {
