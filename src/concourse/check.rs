@@ -1,13 +1,20 @@
 use super::*;
 use crate::{config::Config, repo::*, workspace::Workspace};
 use anyhow::*;
-use std::{env, io, path};
+use std::{
+    env,
+    fs::File,
+    io::{self, Write},
+    path,
+};
 
 const TMPDIR: &str = "TMPDIR";
 pub fn exec() -> Result<()> {
+    let resource: ResourceConfig =
+        serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     let ResourceConfig {
         source, version, ..
-    }: ResourceConfig = serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
+    }: ResourceConfig = resource.clone();
     eprintln!(
         "Last deployment no: '{}', checking if we can deploy a newer version",
         version
@@ -19,6 +26,11 @@ pub fn exec() -> Result<()> {
         "{}/cepler-repo-cache",
         env::var(TMPDIR).unwrap_or_else(|_| "/tmp".to_string())
     );
+    let mut file = File::create(&format!(
+        "{}/cepler-check-input",
+        env::var(TMPDIR).unwrap_or_else(|_| "/tmp".to_string())
+    ))?;
+    file.write_all(&serde_json::to_vec(&resource)?)?;
     let conf = GitConfig {
         url: source.uri,
         branch: source.branch.clone(),
