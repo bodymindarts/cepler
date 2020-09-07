@@ -21,7 +21,7 @@ impl Workspace {
                 previous_env
             ))?;
         }
-        let new_env_state = self.construct_env_state(&repo, env)?;
+        let new_env_state = self.construct_env_state(&repo, env, false)?;
         if let Some((last, deployment_no)) = self.db.get_current_state(&env.name) {
             return if last.equivalent(&new_env_state) {
                 Ok(None)
@@ -59,7 +59,7 @@ impl Workspace {
 
     pub fn record_env(&mut self, env: &EnvironmentConfig, commit: bool) -> Result<()> {
         let repo = Repo::open()?;
-        let new_env_state = self.construct_env_state(&repo, env)?;
+        let new_env_state = self.construct_env_state(&repo, env, true)?;
         let state_file = self
             .db
             .set_current_environment_state(env.name.clone(), new_env_state)?;
@@ -69,7 +69,12 @@ impl Workspace {
         Ok(())
     }
 
-    fn construct_env_state(&self, repo: &Repo, env: &EnvironmentConfig) -> Result<DeployState> {
+    fn construct_env_state(
+        &self,
+        repo: &Repo,
+        env: &EnvironmentConfig,
+        recording: bool,
+    ) -> Result<DeployState> {
         let head_commit = repo.head_commit_hash()?;
         let mut new_env_state = DeployState::new(head_commit);
 
@@ -93,9 +98,14 @@ impl Workspace {
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (name, prev_state) in env_state.files.iter() {
                     if patterns.iter().any(|p| p.matches(&name)) {
-                        let file_hash = hash_file(name);
+                        let (dirty, file_hash) = if recording {
+                            let file_hash = hash_file(name);
+                            (file_hash != prev_state.file_hash, file_hash)
+                        } else {
+                            (false, prev_state.file_hash.clone())
+                        };
                         let file_state = FileState {
-                            dirty: file_hash != prev_state.file_hash,
+                            dirty,
                             file_hash,
                             from_commit: prev_state.from_commit.clone(),
                             message: prev_state.message.clone(),

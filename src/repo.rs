@@ -12,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FileHash(String);
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
