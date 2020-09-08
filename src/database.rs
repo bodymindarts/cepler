@@ -20,7 +20,7 @@ impl Database {
     pub fn open(path_to_config: &str) -> Result<Self> {
         let mut state = DbState::default();
         let dir = format!(
-            "{}/{}",
+            "./{}/{}",
             Path::new(path_to_config)
                 .parent()
                 .unwrap_or_else(|| Path::new("./"))
