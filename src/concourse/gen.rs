@@ -14,10 +14,11 @@ const USER_RUN: &str = "user_run";
 pub struct ConcourseGen {
     handlebars: Handlebars<'static>,
     config: Config,
+    path_to_config: String,
 }
 
 impl ConcourseGen {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, path_to_config: String) -> Self {
         let mut handlebars = Handlebars::new();
         handlebars
             .register_partial(RESOURCE_PARTIAL_NAME, RESOURCE_PARTIAL)
@@ -40,7 +41,11 @@ impl ConcourseGen {
         handlebars
             .register_template_string(BASE_TEMPLATE_NAME, BASE_TEMPLATE)
             .unwrap();
-        Self { handlebars, config }
+        Self {
+            handlebars,
+            config,
+            path_to_config,
+        }
     }
 
     pub fn render_pipeline(&self) -> String {
@@ -78,6 +83,7 @@ impl ConcourseGen {
                 repo_uri: &repo.uri,
                 branch: &repo.branch,
                 git_private_key: &repo.private_key,
+                path_to_config: &self.path_to_config,
             });
         }
         resources
@@ -142,4 +148,5 @@ struct Resource<'a> {
     repo_uri: &'a str,
     branch: &'a str,
     git_private_key: &'a str,
+    path_to_config: &'a str,
 }

@@ -11,15 +11,23 @@ use std::{
 
 pub struct Database {
     state: DbState,
-    state_dir: &'static str,
+    state_dir: String,
 }
 
 pub const STATE_DIR: &str = ".cepler";
 
 impl Database {
-    pub fn open() -> Result<Self> {
+    pub fn open(path_to_config: &str) -> Result<Self> {
         let mut state = DbState::default();
-        let dir = STATE_DIR;
+        let dir = format!(
+            "{}/{}",
+            Path::new(path_to_config)
+                .parent()
+                .unwrap_or_else(|| Path::new("./"))
+                .to_str()
+                .unwrap(),
+            STATE_DIR
+        );
         if Path::new(&dir).is_dir() {
             for path in glob(&format!("{}/*.state", dir))? {
                 let path = path?;

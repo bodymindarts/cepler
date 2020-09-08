@@ -8,7 +8,7 @@ pub struct Workspace {
 impl Workspace {
     pub fn new(path_to_config: String) -> Result<Self> {
         Ok(Self {
-            db: Database::open()?,
+            db: Database::open(&path_to_config)?,
             path_to_config,
         })
     }
@@ -97,7 +97,7 @@ impl Workspace {
         for file in repo.head_files(env.head_filters()) {
             let dirty = repo.is_file_dirty(&file)?;
             let file_name = file.to_str().unwrap().to_string();
-            let (from_commit, message) = repo.find_last_changed_commit(&file);
+            let (from_commit, message) = repo.find_last_changed_commit(&file)?;
             let file_hash = hash_file(file);
             let state = FileState {
                 file_hash,

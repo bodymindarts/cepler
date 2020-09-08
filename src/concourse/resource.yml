@@ -5,3 +5,4 @@
     branch: {{branch}}
     private_key: {{git_private_key}}
     environment: {{name}}
+    config: {{path_to_config}}

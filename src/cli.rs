@@ -152,11 +152,14 @@ fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     Ok(())
 }
 
-fn concourse_gen((conf, _): (Config, String)) -> Result<()> {
+fn concourse_gen((conf, path_to_conf): (Config, String)) -> Result<()> {
     if conf.concourse.is_none() {
         return Err(anyhow!("concourse: key not specified"));
     }
-    println!("{}", ConcourseGen::new(conf).render_pipeline());
+    println!(
+        "{}",
+        ConcourseGen::new(conf, path_to_conf).render_pipeline()
+    );
     Ok(())
 }
 fn concourse_check() -> Result<()> {

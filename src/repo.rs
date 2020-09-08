@@ -253,13 +253,13 @@ impl Repo {
         Ok(())
     }
 
-    pub fn find_last_changed_commit(&self, file: &Path) -> (CommitHash, String) {
+    pub fn find_last_changed_commit(&self, file: &Path) -> Result<(CommitHash, String)> {
         let commit = self.head_commit();
         let target = commit
             .tree()
-            .expect("Couldn't resolve tree")
+            .context("Couldn't resolve tree")?
             .get_path(file)
-            .expect("Couldn't get path");
+            .context("Trying to record uncommitted file")?;
         let mut set = HashSet::new();
         let mut queue = VecDeque::new();
         set.insert(commit.id());
@@ -278,10 +278,10 @@ impl Repo {
                 }
             }
             if !go || queue.is_empty() {
-                return (
+                return Ok((
                     CommitHash(commit.id().to_string()),
                     commit.summary().expect("Couldn't get summary").to_string(),
-                );
+                ));
             }
         }
     }
