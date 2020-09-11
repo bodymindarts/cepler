@@ -23,6 +23,11 @@ impl fmt::Display for CommitHash {
         write!(f, "{}", self.0.chars().take(7).collect::<String>())
     }
 }
+impl CommitHash {
+    pub fn to_short_ref(&self) -> String {
+        self.0.chars().take(7).collect()
+    }
+}
 
 pub fn hash_file<P: AsRef<Path>>(file: P) -> FileHash {
     FileHash(

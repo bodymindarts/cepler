@@ -1,6 +1,7 @@
 use super::*;
 use crate::{config::Config, repo::*, workspace::Workspace};
 use anyhow::*;
+use glob::*;
 use std::{io, path};
 
 pub fn exec(destination: &str) -> Result<()> {
@@ -39,24 +40,35 @@ pub fn exec(destination: &str) -> Result<()> {
         version.deployment_no
     );
     let wanted_no = version.deployment_no.parse()?;
+    let wanted_head = &version.head;
     match ws.check(env)? {
-        Some(n) if n == wanted_no => {
+        Some((n, head)) if n == wanted_no && &head == wanted_head => {
             eprintln!("Found new state to deploy");
         }
-        Some(n) if n > wanted_no => {
+        Some((_, head)) if &head != wanted_head => eprintln!("Repo is out of date."),
+        Some((n, _)) if n > wanted_no => {
             return Err(anyhow!(
                 "Cannot provide resource. Last deployment was: '{}",
                 n - 1
             ));
         }
-        Some(n) => {
+        Some((n, _)) => {
             return Err(anyhow!(
                 "Cannot provide resource. Next deployment would be: '{}",
                 n
             ));
         }
         None => {
-            return Err(anyhow!("Nothing new to deploy"));
+            eprintln!("Nothing new to deploy... providing an empty dir");
+            for path in glob("*")? {
+                let path = path?;
+                if path.is_dir() {
+                    std::fs::remove_dir_all(path).context("Couldn't remove dir")?;
+                } else {
+                    std::fs::remove_file(path).context("Couldn't remove file")?;
+                }
+            }
+            return Ok(());
         }
     }
     eprintln!("Preparing the workspace");

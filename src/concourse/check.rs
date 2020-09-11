@@ -15,13 +15,15 @@ pub fn exec() -> Result<()> {
     let ResourceConfig {
         source, version, ..
     }: ResourceConfig = resource.clone();
-    eprintln!(
-        "Last deployment no: '{}', checking if we can deploy a newer version",
-        version
-            .as_ref()
-            .map(|v| v.deployment_no.as_ref())
-            .unwrap_or("0")
-    );
+    if let Some(ref version) = version {
+        eprintln!(
+            "Last deployment no: '{}' (head: '{}'), checking if we can deploy a newer version",
+            version.deployment_no, version.head
+        );
+    } else {
+        eprintln!("No previous deployments - checking if there is one");
+    }
+
     let clone_dir = format!(
         "{}/cepler-repo-cache",
         env::var(TMPDIR).unwrap_or_else(|_| "/tmp".to_string())
@@ -74,10 +76,11 @@ pub fn exec() -> Result<()> {
         None => {
             eprintln!("Nothing new to deploy");
         }
-        Some(n) => {
+        Some((n, head)) => {
             eprintln!("Found new state to deploy");
             res.push(Version {
                 deployment_no: n.to_string(),
+                head,
             })
         }
     }

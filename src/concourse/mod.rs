@@ -26,11 +26,12 @@ struct Source {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Version {
     deployment_no: String,
+    head: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct OutParams {
-    repo: String,
+    repository: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

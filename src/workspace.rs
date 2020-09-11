@@ -13,7 +13,7 @@ impl Workspace {
         })
     }
 
-    pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<usize>> {
+    pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(usize, String)>> {
         let repo = Repo::open()?;
         if let Some(previous_env) = env.propagated_from() {
             self.db.get_current_state(&previous_env).context(format!(
@@ -26,10 +26,13 @@ impl Workspace {
             return if last.equivalent(&new_env_state) {
                 Ok(None)
             } else {
-                Ok(Some(deployment_no))
+                Ok(Some((
+                    deployment_no,
+                    new_env_state.head_commit.to_short_ref(),
+                )))
             };
         }
-        Ok(Some(1))
+        Ok(Some((1, new_env_state.head_commit.to_short_ref())))
     }
 
     pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
@@ -63,10 +66,11 @@ impl Workspace {
         commit: bool,
         reset: bool,
         git_config: Option<GitConfig>,
-    ) -> Result<usize> {
+    ) -> Result<(usize, String)> {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
+        let short_ref = new_env_state.head_commit.to_short_ref();
         let (state_file, deployment) = self
             .db
             .set_current_environment_state(env.name.clone(), new_env_state)?;
@@ -82,7 +86,7 @@ impl Workspace {
             eprintln!("Pushing to remote");
             repo.push(config)?;
         }
-        Ok(deployment)
+        Ok((deployment + 1, short_ref))
     }
 
     fn construct_env_state(

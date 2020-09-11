@@ -9,7 +9,7 @@ pub fn exec(origin: &str) -> Result<()> {
     std::env::set_current_dir(path::Path::new(&format!(
         "{}/{}",
         origin,
-        params.unwrap().repo
+        params.unwrap().repository
     )))?;
 
     let conf = GitConfig {
@@ -27,12 +27,13 @@ pub fn exec(origin: &str) -> Result<()> {
             "Environment '{}' not found in config",
             source.environment
         ))?;
-    let deployment = ws.record_env(env, true, true, Some(conf))?;
+    let (deployment, head) = ws.record_env(env, true, true, Some(conf))?;
     println!(
         "{}",
         serde_json::to_string(&InReturn {
             version: Version {
-                deployment_no: deployment.to_string()
+                deployment_no: deployment.to_string(),
+                head,
             }
         })?
     );

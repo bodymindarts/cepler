@@ -19,15 +19,12 @@ pub const STATE_DIR: &str = ".cepler";
 impl Database {
     pub fn open(path_to_config: &str) -> Result<Self> {
         let mut state = DbState::default();
-        let dir = format!(
-            "./{}/{}",
-            Path::new(path_to_config)
-                .parent()
-                .unwrap_or_else(|| Path::new("./"))
-                .to_str()
-                .unwrap(),
-            STATE_DIR
-        );
+        let path = Path::new(path_to_config);
+        let dir = if let Some(parent) = path.parent() {
+            format!("{}/{}", parent.to_str().unwrap(), STATE_DIR)
+        } else {
+            format!("{}", STATE_DIR)
+        };
         if Path::new(&dir).is_dir() {
             for path in glob(&format!("{}/*.state", dir))? {
                 let path = path?;
