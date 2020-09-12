@@ -1,18 +1,18 @@
-(Concourse Enviroment Propagate)-ler
+tests:
 
-cepler.yml
----
-hook: ((task def))
+- concourse check returns ref (if there is a deployment)
+- concourse in returns empty dir (if there is no deployment)
+- conourse out returns latest ref
 
-environments:
-  testflight:
-    head_files:
-    - **/*
+shadowing:
+- cepler.yml is always head
+- .cepler is always head
 
-  staging:
-    pull_from: testflight
-    propagated_files:
-    - bla
-    - blu
-    head_files:
-    - staging
+propagated files don't shadow head files!
+
+
+*.yml in testflight
+change cepler.yml
+prepare staging
+ensure cepler.yml is clean
+- cepler.yml is always head

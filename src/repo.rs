@@ -298,6 +298,10 @@ impl Repo {
     fn head_oid(&self) -> Oid {
         self.inner.head().unwrap().peel_to_commit().unwrap().id()
     }
+
+    pub fn root(&self) -> &Path {
+        self.inner.path().parent().as_ref().unwrap()
+    }
 }
 
 fn remote_callbacks(key: String) -> Result<RemoteCallbacks<'static>> {
