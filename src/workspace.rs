@@ -42,7 +42,7 @@ impl Workspace {
         } else {
             None
         };
-        let ignore_list = vec![self.path_to_config.as_ref(), STATE_DIR];
+        let ignore_list = vec![self.path_to_config.as_ref(), self.db.state_dir.as_ref()];
         repo.checkout_head(head_files, ignore_list)?;
         for file in env.propagated_files() {
             std::fs::remove_file(file).expect("Couldn't remove file");

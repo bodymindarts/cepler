@@ -11,10 +11,10 @@ use std::{
 
 pub struct Database {
     state: DbState,
-    state_dir: String,
+    pub state_dir: String,
 }
 
-pub const STATE_DIR: &str = ".cepler";
+const STATE_DIR: &str = ".cepler";
 
 impl Database {
     pub fn open(path_to_config: &str) -> Result<Self> {
