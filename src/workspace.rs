@@ -42,8 +42,7 @@ impl Workspace {
         } else {
             None
         };
-        let ignore_list = vec![self.path_to_config.as_ref(), self.db.state_dir.as_ref()];
-        repo.checkout_head(head_files, ignore_list)?;
+        repo.checkout_head(head_files, self.ignore_list())?;
         for file in env.propagated_files() {
             std::fs::remove_file(file).expect("Couldn't remove file");
         }
@@ -98,7 +97,7 @@ impl Workspace {
         let head_commit = repo.head_commit_hash()?;
         let mut new_env_state = DeployState::new(head_commit);
 
-        for file in repo.head_files(env.head_filters()) {
+        for file in repo.head_files(env.head_filters(), self.ignore_list()) {
             let dirty = repo.is_file_dirty(&file)?;
             let file_name = file.to_str().unwrap().to_string();
             let (from_commit, message) = repo.find_last_changed_commit(&file)?;
@@ -137,5 +136,9 @@ impl Workspace {
         }
 
         Ok(new_env_state)
+    }
+
+    fn ignore_list(&self) -> Vec<String> {
+        vec![self.path_to_config.clone(), self.db.state_dir.clone()]
     }
 }

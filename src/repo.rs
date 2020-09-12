@@ -172,7 +172,11 @@ impl Repo {
         Ok(())
     }
 
-    pub fn head_files(&self, filters: &[String]) -> impl Iterator<Item = PathBuf> + '_ {
+    pub fn head_files(
+        &self,
+        filters: &[String],
+        ignore_files: Vec<String>,
+    ) -> impl Iterator<Item = PathBuf> + '_ {
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
         let files: Vec<_> = filters
@@ -183,7 +187,9 @@ impl Repo {
             .collect();
         let repo = Self::open().expect("Couldn't re-open repo");
         files.into_iter().filter_map(move |file| {
-            if repo.is_trackable_file(&file) {
+            if repo.is_trackable_file(&file)
+                && !ignore_files.contains(&file.to_str().expect("Non utf8 filename").to_string())
+            {
                 Some(file)
             } else {
                 None
@@ -224,7 +230,11 @@ impl Repo {
         Ok(())
     }
 
-    pub fn checkout_head(&self, filters: Option<&[String]>, ignore_files: Vec<&str>) -> Result<()> {
+    pub fn checkout_head(
+        &self,
+        filters: Option<&[String]>,
+        ignore_files: Vec<String>,
+    ) -> Result<()> {
         self.inner
             .reset(self.head_commit().as_object(), ResetType::Hard, None)?;
         if let Some(filters) = filters {
@@ -233,7 +243,7 @@ impl Repo {
 
             let mut checkout = CheckoutBuilder::new();
             checkout.force();
-            for path in self.head_files(filters) {
+            for path in self.head_files(filters, ignore_files.clone()) {
                 checkout.path(path);
             }
 
