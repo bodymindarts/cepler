@@ -30,3 +30,9 @@ teardown_file() {
   run grep cepler.yml $(state "testflight")
   [ "$status" -ne 0 ]
 }
+
+@test "Prepare staging shouldn't delete cepler.yml" {
+  cmd prepare -e staging
+
+  [ -f $(config) ]
+}

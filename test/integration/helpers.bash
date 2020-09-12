@@ -7,6 +7,10 @@ cmd() {
   ${REPO_ROOT}/target/debug/cepler -c test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/cepler.yml $@
 }
 
+config() {
+  echo "test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/cepler.yml"
+}
+
 state() {
   echo "test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/.cepler/$1.state"
 }

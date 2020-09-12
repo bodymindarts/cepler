@@ -7,4 +7,4 @@ environments:
     head_files:
     - test/fixtures/shadowing/staging.yml
     propagated_files:
-    - test/fixtures/shadowing/shared.yml
+    - test/fixtures/shadowing/*.yml

@@ -42,9 +42,12 @@ impl Workspace {
         } else {
             None
         };
-        repo.checkout_head(head_files, self.ignore_list())?;
+        let ignore_list = self.ignore_list();
+        repo.checkout_head(head_files, ignore_list.clone())?;
         for file in env.propagated_files() {
-            std::fs::remove_file(file).expect("Couldn't remove file");
+            if !ignore_list.contains(&file.to_str().unwrap().to_string()) {
+                std::fs::remove_file(file).expect("Couldn't remove file");
+            }
         }
         if let Some(previous_env) = env.propagated_from() {
             if let Some(env_state) = self.db.get_target_propagated_state(&env.name, previous_env) {
