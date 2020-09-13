@@ -71,6 +71,13 @@ impl EnvironmentConfig {
             .map(|res| res.expect("Couldn't list file"))
     }
 
+    pub fn head_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> {
+        self.head_files
+            .to_vec()
+            .into_iter()
+            .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
+    }
+
     pub fn head_filters(&self) -> &[String] {
         &self.head_files
     }

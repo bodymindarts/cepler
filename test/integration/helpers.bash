@@ -15,6 +15,10 @@ state() {
   echo "test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/.cepler/$1.state"
 }
 
+fixture() {
+  echo "test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})"
+}
+
 cache_value() {
   echo $2 > ${BATS_TMPDIR}/$1
 }
@@ -33,6 +37,8 @@ prepare_test() {
 }
 
 reset_repo_state() {
+  git reset --hard
+  git clean -f
   git checkout $(read_value "current_branch")
   git reset $(read_value "head_ref")
 }

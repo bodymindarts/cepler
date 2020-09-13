@@ -35,4 +35,18 @@ teardown_file() {
   cmd prepare -e staging
 
   [ -f $(config) ]
+
+  git checkout .
+}
+
+@test "Head files override propagated_files" {
+  echo "staging_new: {}" > $(fixture)/staging.yml
+  git commit -am 'Update staging.yml'
+
+  cmd prepare -e staging
+  run grep 'staging_new' $(fixture)/staging.yml
+
+  [ "$status" -eq 0 ]
+
+  git checkout .
 }

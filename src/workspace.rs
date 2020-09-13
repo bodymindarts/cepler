@@ -44,16 +44,20 @@ impl Workspace {
         };
         let ignore_list = self.ignore_list();
         repo.checkout_head(head_files, ignore_list.clone())?;
-        for file in env.propagated_files() {
-            if !ignore_list.contains(&file.to_str().unwrap().to_string()) {
-                std::fs::remove_file(file).expect("Couldn't remove file");
+        let head_patterns: Vec<_> = env.head_file_patterns().collect();
+        for file_buf in env.propagated_files() {
+            let file = file_buf.to_str().unwrap().to_string();
+            if !ignore_list.contains(&file) && !head_patterns.iter().any(|p| p.matches(&file)) {
+                std::fs::remove_file(file_buf).expect("Couldn't remove file");
             }
         }
         if let Some(previous_env) = env.propagated_from() {
             if let Some(env_state) = self.db.get_target_propagated_state(&env.name, previous_env) {
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (name, state) in env_state.files.iter() {
-                    if patterns.iter().any(|p| p.matches(&name)) {
+                    if patterns.iter().any(|p| p.matches(&name))
+                        && !head_patterns.iter().any(|p| p.matches(&name))
+                    {
                         repo.checkout_file_from(name, &state.from_commit)?;
                     }
                 }
