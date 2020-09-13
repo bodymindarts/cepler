@@ -25,7 +25,6 @@ struct Source {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Version {
-    deployment_no: String,
     head: String,
 }
 

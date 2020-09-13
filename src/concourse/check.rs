@@ -17,8 +17,8 @@ pub fn exec() -> Result<()> {
     }: ResourceConfig = resource.clone();
     if let Some(ref version) = version {
         eprintln!(
-            "Last deployment no: '{}' (head: '{}'), checking if we can deploy a newer version",
-            version.deployment_no, version.head
+            "Last deployed head: '{}', checking if we can deploy a newer version",
+            version.head
         );
     } else {
         eprintln!("No previous deployments - checking if there is one");
@@ -76,12 +76,9 @@ pub fn exec() -> Result<()> {
         None => {
             eprintln!("Nothing new to deploy");
         }
-        Some((n, head)) => {
+        Some(head) => {
             eprintln!("Found new state to deploy");
-            res.push(Version {
-                deployment_no: n.to_string(),
-                head,
-            })
+            res.push(Version { head })
         }
     }
     println!("{}", serde_json::to_string(&res)?);

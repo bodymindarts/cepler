@@ -27,14 +27,11 @@ pub fn exec(origin: &str) -> Result<()> {
             "Environment '{}' not found in config",
             source.environment
         ))?;
-    let (deployment, head) = ws.record_env(env, true, true, Some(conf))?;
+    let head = ws.record_env(env, true, true, Some(conf))?;
     println!(
         "{}",
         serde_json::to_string(&InReturn {
-            version: Version {
-                deployment_no: deployment.to_string(),
-                head,
-            }
+            version: Version { head }
         })?
     );
     Ok(())

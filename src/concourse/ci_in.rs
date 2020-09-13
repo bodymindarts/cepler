@@ -36,28 +36,12 @@ pub fn exec(destination: &str) -> Result<()> {
             source.environment
         ))?;
     eprintln!(
-        "Checking if we can prepare deployment no '{}'",
-        version.deployment_no
+        "Checking if we can prepare deployment at head '{}'",
+        version.head
     );
-    let wanted_no = version.deployment_no.parse()?;
     let wanted_head = &version.head;
     match ws.check(env)? {
-        Some((n, head)) if n == wanted_no && &head == wanted_head => {
-            eprintln!("Found new state to deploy");
-        }
-        Some((_, head)) if &head != wanted_head => eprintln!("Repo is out of date."),
-        Some((n, _)) if n > wanted_no => {
-            return Err(anyhow!(
-                "Cannot provide resource. Last deployment was: '{}",
-                n - 1
-            ));
-        }
-        Some((n, _)) => {
-            return Err(anyhow!(
-                "Cannot provide resource. Next deployment would be: '{}",
-                n
-            ));
-        }
+        Some(head) if &head != wanted_head => eprintln!("Repo is out of date."),
         None => {
             eprintln!("Nothing new to deploy... providing an empty dir");
             for path in glob("*")? {
@@ -68,8 +52,10 @@ pub fn exec(destination: &str) -> Result<()> {
                     std::fs::remove_file(path).context("Couldn't remove file")?;
                 }
             }
+            println!("{}", serde_json::to_string(&InReturn { version })?);
             return Ok(());
         }
+        Some(_) => (),
     }
     eprintln!("Preparing the workspace");
     ws.prepare(env, true)?;

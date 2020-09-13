@@ -49,14 +49,13 @@ impl Database {
         &mut self,
         name: String,
         mut env: DeployState,
-    ) -> Result<(String, usize)> {
+    ) -> Result<String> {
         let any_dirty = env.files.values().any(|f| f.dirty);
         env.any_dirty = any_dirty;
         let ret = format!("{}/{}.state", self.state_dir, &name);
-        let deployment = if let Some(state) = self.state.environments.get_mut(&name) {
+        if let Some(state) = self.state.environments.get_mut(&name) {
             std::mem::swap(&mut state.current, &mut env);
             state.history.push_front(env);
-            state.history.len() + 1
         } else {
             self.state.environments.insert(
                 name,
@@ -65,10 +64,9 @@ impl Database {
                     history: VecDeque::new(),
                 },
             );
-            1
-        };
+        }
         self.persist()?;
-        Ok((ret, deployment))
+        Ok(ret)
     }
 
     pub fn get_target_propagated_state(
@@ -106,11 +104,8 @@ impl Database {
         }
     }
 
-    pub fn get_current_state(&self, env: &str) -> Option<(&DeployState, usize)> {
-        self.state
-            .environments
-            .get(env)
-            .map(|env| (&env.current, env.history.len() + 2))
+    pub fn get_current_state(&self, env: &str) -> Option<&DeployState> {
+        self.state.environments.get(env).map(|env| &env.current)
     }
 
     fn persist(&self) -> Result<()> {
