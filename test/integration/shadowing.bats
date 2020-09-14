@@ -32,7 +32,7 @@ teardown_file() {
 }
 
 @test "Prepare staging shouldn't delete cepler.yml" {
-  cmd prepare -e staging
+  cmd prepare -e staging --force-clean
 
   [ -f $(config) ]
 

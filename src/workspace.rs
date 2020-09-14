@@ -44,7 +44,9 @@ impl Workspace {
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         for file_buf in env.propagated_files() {
             let file = file_buf.to_str().unwrap().to_string();
-            if !ignore_list.contains(&file) && !head_patterns.iter().any(|p| p.matches(&file)) {
+            if !ignore_list.iter().any(|p| p.matches(&file))
+                && !head_patterns.iter().any(|p| p.matches(&file))
+            {
                 std::fs::remove_file(file_buf).expect("Couldn't remove file");
             }
         }
@@ -142,7 +144,11 @@ impl Workspace {
         Ok(new_env_state)
     }
 
-    fn ignore_list(&self) -> Vec<String> {
-        vec![self.path_to_config.clone(), self.db.state_dir.clone()]
+    fn ignore_list(&self) -> Vec<glob::Pattern> {
+        vec![
+            glob::Pattern::new(&self.path_to_config).unwrap(),
+            glob::Pattern::new(&self.db.state_dir).unwrap(),
+            glob::Pattern::new(".git/*").unwrap(),
+        ]
     }
 }

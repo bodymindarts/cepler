@@ -5,7 +5,6 @@ use git2::{
 };
 use glob::*;
 use serde::{Deserialize, Serialize};
-use std::ffi::OsStr;
 use std::{
     collections::{HashSet, VecDeque},
     fmt,
@@ -175,7 +174,7 @@ impl Repo {
     pub fn head_files(
         &self,
         filters: &[String],
-        ignore_files: Vec<String>,
+        ignore_files: Vec<Pattern>,
     ) -> impl Iterator<Item = PathBuf> + '_ {
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
@@ -188,7 +187,9 @@ impl Repo {
         let repo = Self::open().expect("Couldn't re-open repo");
         files.into_iter().filter_map(move |file| {
             if repo.is_trackable_file(&file)
-                && !ignore_files.contains(&file.to_str().expect("Non utf8 filename").to_string())
+                && !ignore_files
+                    .iter()
+                    .any(|p| p.matches(file.to_str().unwrap()))
             {
                 Some(file)
             } else {
@@ -233,29 +234,23 @@ impl Repo {
     pub fn checkout_head(
         &self,
         filters: Option<&[String]>,
-        ignore_files: Vec<String>,
+        ignore_files: Vec<Pattern>,
     ) -> Result<()> {
         self.inner
             .reset(self.head_commit().as_object(), ResetType::Hard, None)?;
         if let Some(filters) = filters {
-            let mut ignore_os_files: HashSet<_> = ignore_files.iter().map(OsStr::new).collect();
-            ignore_os_files.insert(OsStr::new(".git"));
-
             let mut checkout = CheckoutBuilder::new();
             checkout.force();
             for path in self.head_files(filters, ignore_files.clone()) {
                 checkout.path(path);
             }
 
-            for path in glob("*").expect("List all files") {
+            for path in glob("**/*").expect("List all files") {
                 let path = path.expect("Get file");
-                if let Some(name) = path.file_name() {
-                    if !ignore_os_files.contains(name) {
-                        if path.as_path().is_dir() {
-                            std::fs::remove_dir_all(path).expect("Couldn't remove file");
-                        } else {
-                            std::fs::remove_file(path).expect("Couldn't remove file");
-                        }
+                let path = path.as_path();
+                if !ignore_files.iter().any(|p| p.matches_path(path)) {
+                    if path.is_file() {
+                        std::fs::remove_file(path).expect("Couldn't remove file");
                     }
                 }
             }
