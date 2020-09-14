@@ -147,8 +147,9 @@ impl Workspace {
     fn ignore_list(&self) -> Vec<glob::Pattern> {
         vec![
             glob::Pattern::new(&self.path_to_config).unwrap(),
-            glob::Pattern::new(&self.db.state_dir).unwrap(),
+            glob::Pattern::new(&format!("{}/*", self.db.state_dir)).unwrap(),
             glob::Pattern::new(".git/*").unwrap(),
+            glob::Pattern::new(".gitignore").unwrap(),
         ]
     }
 }
