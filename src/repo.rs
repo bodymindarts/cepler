@@ -247,10 +247,12 @@ impl Repo {
 
             for path in glob("**/*").expect("List all files") {
                 let path = path.expect("Get file");
-                let path = path.as_path();
-                if !ignore_files.iter().any(|p| p.matches_path(path)) {
-                    if path.is_file() {
-                        std::fs::remove_file(path).expect("Couldn't remove file");
+                if self.is_trackable_file(&path) {
+                    let path = path.as_path();
+                    if !ignore_files.iter().any(|p| p.matches_path(path)) {
+                        if path.is_file() {
+                            std::fs::remove_file(path).expect("Couldn't remove file");
+                        }
                     }
                 }
             }
