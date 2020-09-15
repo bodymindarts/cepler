@@ -69,16 +69,22 @@ pub fn exec() -> Result<()> {
         ))?;
     eprintln!("Checking equivalence with last deployed state...");
     let mut res = Vec::new();
-    if let Some(version) = version {
-        res.push(version);
-    }
-    match ws.check(env)? {
-        None => {
-            eprintln!("Nothing new to deploy");
-        }
-        Some(head) => {
+    match (version, ws.check(env)?) {
+        (None, Some(head)) => {
             eprintln!("Found new state to deploy");
             res.push(Version { head })
+        }
+        (Some(last), Some(head)) if last.head != head => {
+            eprintln!("Found new state to deploy");
+            res.push(last);
+            res.push(Version { head })
+        }
+        (Some(last), _) => {
+            eprintln!("Nothing new to deploy");
+            res.push(last);
+        }
+        _ => {
+            eprintln!("Nothing new to deploy");
         }
     }
     println!("{}", serde_json::to_string(&res)?);
