@@ -29,7 +29,7 @@ impl Workspace {
             } else {
                 Ok(Some((
                     new_env_state.head_commit.to_short_ref(),
-                    get_diff(&new_env_state, None),
+                    get_diff(&new_env_state, Some(last)),
                 )))
             };
         }
