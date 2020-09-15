@@ -40,13 +40,11 @@ teardown_file() {
 }
 
 @test "Head files override propagated_files" {
-  echo "staging_new: {}" > $(fixture)/staging.yml
+  echo "staging_new: {}" > `fixture`/staging.yml
   git commit -am 'Update staging.yml'
 
   cmd prepare -e staging
-  run grep 'staging_new' $(fixture)/staging.yml
-
-  [ "$status" -eq 0 ]
+  grep 'staging_new' `fixture`/staging.yml
 
   git checkout .
 }

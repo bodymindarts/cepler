@@ -1,0 +1,10 @@
+environments:
+  testflight:
+    head_files:
+    - test/fixtures/simple/file.yml
+  staging:
+    passed: testflight
+    propagated_files:
+    - test/fixtures/simple/file.yml
+    head_files:
+    - test/fixtures/simple/staging.yml
