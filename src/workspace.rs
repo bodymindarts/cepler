@@ -1,5 +1,6 @@
 use super::{config::EnvironmentConfig, database::*, repo::*};
 use anyhow::*;
+use serde::{Deserialize, Serialize};
 
 pub struct Workspace {
     path_to_config: String,
@@ -13,7 +14,7 @@ impl Workspace {
         })
     }
 
-    pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<String>> {
+    pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(String, Vec<DiffElem>)>> {
         let repo = Repo::open()?;
         if let Some(previous_env) = env.propagated_from() {
             self.db.get_current_state(&previous_env).context(format!(
@@ -26,10 +27,16 @@ impl Workspace {
             return if last.equivalent(&new_env_state) {
                 Ok(None)
             } else {
-                Ok(Some(new_env_state.head_commit.to_short_ref()))
+                Ok(Some((
+                    new_env_state.head_commit.to_short_ref(),
+                    get_diff(&new_env_state, None),
+                )))
             };
         }
-        Ok(Some(new_env_state.head_commit.to_short_ref()))
+        Ok(Some((
+            new_env_state.head_commit.to_short_ref(),
+            get_diff(&new_env_state, None),
+        )))
     }
 
     pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
@@ -71,10 +78,11 @@ impl Workspace {
         commit: bool,
         reset: bool,
         git_config: Option<GitConfig>,
-    ) -> Result<String> {
+    ) -> Result<(String, Vec<DiffElem>)> {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
+        let diff = get_diff(&new_env_state, self.db.get_current_state(&env.name));
         let state_file = self
             .db
             .set_current_environment_state(env.name.clone(), new_env_state)?;
@@ -91,7 +99,7 @@ impl Workspace {
             repo.push(config)?;
         }
         let head_commit = repo.head_commit_hash()?;
-        Ok(head_commit.to_short_ref())
+        Ok((head_commit.to_short_ref(), diff))
     }
 
     fn construct_env_state(
@@ -152,4 +160,41 @@ impl Workspace {
             glob::Pattern::new(".gitignore").unwrap(),
         ]
     }
+}
+
+fn get_diff(current: &DeployState, last: Option<&DeployState>) -> Vec<DiffElem> {
+    if last.is_none() {
+        return current
+            .files
+            .iter()
+            .map(|(name, state)| DiffElem {
+                name: name.clone(),
+                value: state.to_string(),
+            })
+            .collect();
+    }
+    let last = last.unwrap();
+    current
+        .files
+        .iter()
+        .filter_map(|(name, state)| {
+            if let Some(last_state) = last.files.get(name) {
+                if state.dirty || last_state.dirty || state.file_hash != last_state.file_hash {
+                    Some(DiffElem {
+                        name: name.clone(),
+                        value: state.to_string(),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DiffElem {
+    name: String,
+    value: String,
 }

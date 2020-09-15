@@ -4,6 +4,7 @@ use glob::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, VecDeque},
+    fmt,
     fs::File,
     io::{BufReader, Read},
     path::Path,
@@ -20,10 +21,10 @@ impl Database {
     pub fn open(path_to_config: &str) -> Result<Self> {
         let mut state = DbState::default();
         let path = Path::new(path_to_config);
-        let dir = if let Some(parent) = path.parent() {
-            format!("{}/{}", parent.to_str().unwrap(), STATE_DIR)
-        } else {
-            format!("{}", STATE_DIR)
+        let dir = match path.parent() {
+            Some(parent) if parent == Path::new("") => format!("{}", STATE_DIR),
+            None => format!("{}", STATE_DIR),
+            Some(parent) => format!("{}/{}", parent.to_str().unwrap(), STATE_DIR),
         };
         if Path::new(&dir).is_dir() {
             for path in glob(&format!("{}/*.state", dir))? {
@@ -197,6 +198,17 @@ pub struct FileState {
     pub dirty: bool,
     pub from_commit: CommitHash,
     pub message: String,
+}
+
+impl fmt::Display for FileState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[{}] - {}",
+            self.from_commit.to_short_ref(),
+            self.message
+        )
+    }
 }
 
 fn is_false(b: &bool) -> bool {

@@ -4,5 +4,5 @@
     uri: {{repo_uri}}
     branch: {{branch}}
     private_key: {{git_private_key}}
-    environment: {{name}}
+    environment: {{environment}}
     config: {{path_to_config}}

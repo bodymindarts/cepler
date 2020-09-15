@@ -70,11 +70,11 @@ pub fn exec() -> Result<()> {
     eprintln!("Checking equivalence with last deployed state...");
     let mut res = Vec::new();
     match (version, ws.check(env)?) {
-        (None, Some(head)) => {
+        (None, Some((head, _))) => {
             eprintln!("Found new state to deploy");
             res.push(Version { head })
         }
-        (Some(last), Some(head)) if last.head != head => {
+        (Some(last), Some((head, _))) if last.head != head => {
             eprintln!("Found new state to deploy");
             res.push(last);
             res.push(Version { head })

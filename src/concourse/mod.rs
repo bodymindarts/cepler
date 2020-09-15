@@ -1,3 +1,4 @@
+use crate::workspace::DiffElem;
 use serde::{Deserialize, Serialize};
 
 mod gen;
@@ -34,8 +35,9 @@ struct OutParams {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct InReturn {
+struct ResourceData {
     version: Version,
+    metadata: Vec<DiffElem>,
 }
 
 fn default_config_path() -> String {

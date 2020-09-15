@@ -40,8 +40,11 @@ pub fn exec(destination: &str) -> Result<()> {
         version.head
     );
     let wanted_head = &version.head;
-    match ws.check(env)? {
-        Some(head) if &head != wanted_head => eprintln!("Repo is out of date."),
+    let diff = match ws.check(env)? {
+        Some((head, diff)) if &head != wanted_head => {
+            eprintln!("Repo is out of date.");
+            diff
+        }
         None => {
             eprintln!("Nothing new to deploy... providing an empty dir");
             for path in glob("*")? {
@@ -52,14 +55,26 @@ pub fn exec(destination: &str) -> Result<()> {
                     std::fs::remove_file(path).context("Couldn't remove file")?;
                 }
             }
-            println!("{}", serde_json::to_string(&InReturn { version })?);
+            println!(
+                "{}",
+                serde_json::to_string(&ResourceData {
+                    version,
+                    metadata: Vec::new()
+                })?
+            );
             return Ok(());
         }
-        Some(_) => (),
-    }
+        Some((_, diff)) => diff,
+    };
     eprintln!("Preparing the workspace");
     ws.prepare(env, true)?;
 
-    println!("{}", serde_json::to_string(&InReturn { version })?);
+    println!(
+        "{}",
+        serde_json::to_string(&ResourceData {
+            version,
+            metadata: diff
+        })?
+    );
     Ok(())
 }

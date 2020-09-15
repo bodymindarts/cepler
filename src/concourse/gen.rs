@@ -79,6 +79,16 @@ impl ConcourseGen {
         for env in self.environments() {
             resources.push(Resource {
                 name: env.name.clone(),
+                environment: env.name.clone(),
+                r#type: "cepler",
+                repo_uri: &repo.uri,
+                branch: &repo.branch,
+                git_private_key: &repo.private_key,
+                path_to_config: &self.path_to_config,
+            });
+            resources.push(Resource {
+                name: format!("{}-out", env.name.clone()),
+                environment: env.name.clone(),
                 r#type: "cepler",
                 repo_uri: &repo.uri,
                 branch: &repo.branch,
@@ -145,6 +155,7 @@ struct JobData<'a> {
 struct Resource<'a> {
     name: String,
     r#type: &'static str,
+    environment: String,
     repo_uri: &'a str,
     branch: &'a str,
     git_private_key: &'a str,

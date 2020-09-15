@@ -15,6 +15,6 @@
       run:
         dir: repo
 {{> user_run }}
-  - put: {{name}}
+  - put: {{name}}-out
     params:
-      repo: repo
+      repository: repo
