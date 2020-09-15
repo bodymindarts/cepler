@@ -7,7 +7,12 @@ resources:
 {{> resource this }}
 {{/each ~}}
 resource_types:
-- name: cepler
+- name: cepler-in
+  type: registry-image
+  source:
+    repository: bodymindarts/cepler
+    tag: latest
+- name: cepler-out
   type: registry-image
   source:
     repository: bodymindarts/cepler

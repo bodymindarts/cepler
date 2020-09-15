@@ -80,7 +80,7 @@ impl ConcourseGen {
             resources.push(Resource {
                 name: env.name.clone(),
                 environment: env.name.clone(),
-                r#type: "cepler",
+                r#type: "cepler-in",
                 repo_uri: &repo.uri,
                 branch: &repo.branch,
                 git_private_key: &repo.private_key,
@@ -89,7 +89,7 @@ impl ConcourseGen {
             resources.push(Resource {
                 name: format!("{}-out", env.name.clone()),
                 environment: env.name.clone(),
-                r#type: "cepler",
+                r#type: "cepler-out",
                 repo_uri: &repo.uri,
                 branch: &repo.branch,
                 git_private_key: &repo.private_key,

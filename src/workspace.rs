@@ -83,9 +83,11 @@ impl Workspace {
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
         let diff = get_diff(&new_env_state, self.db.get_current_state(&env.name));
-        let state_file = self
-            .db
-            .set_current_environment_state(env.name.clone(), new_env_state)?;
+        let state_file = self.db.set_current_environment_state(
+            env.name.clone(),
+            env.propagated_from().cloned(),
+            new_env_state,
+        )?;
         if commit {
             eprintln!("Adding commit to repository to persist state");
             repo.commit_state_file(state_file)?;

@@ -49,6 +49,7 @@ impl Database {
     pub fn set_current_environment_state(
         &mut self,
         name: String,
+        propagated_from: Option<String>,
         mut env: DeployState,
     ) -> Result<String> {
         let any_dirty = env.files.values().any(|f| f.dirty);
@@ -56,16 +57,18 @@ impl Database {
         let ret = format!("{}/{}.state", self.state_dir, &name);
         if let Some(state) = self.state.environments.get_mut(&name) {
             std::mem::swap(&mut state.current, &mut env);
-            state.history.push_front(env);
+            state.propagation_queue.push_front(env);
         } else {
             self.state.environments.insert(
-                name,
+                name.clone(),
                 EnvironmentState {
                     current: env,
-                    history: VecDeque::new(),
+                    propagated_from,
+                    propagation_queue: VecDeque::new(),
                 },
             );
         }
+        self.state.prune_propagation_queue(name);
         self.persist()?;
         Ok(ret)
     }
@@ -84,16 +87,16 @@ impl Database {
                     if from_head == &from.current.head_commit {
                         Some(&from.current)
                     } else {
-                        let (last_idx, _) = from
-                            .history
+                        match from
+                            .propagation_queue
                             .iter()
                             .enumerate()
                             .find(|(_, state)| &state.head_commit == from_head)
-                            .expect("Couldn't find state in history");
-                        if last_idx >= 1 {
-                            Some(&from.history[last_idx - 1])
-                        } else {
-                            Some(&from.current)
+                        {
+                            Some((idx, _)) if idx == 0 => Some(&from.current),
+
+                            Some((idx, _)) => Some(&from.propagation_queue[idx - 1]),
+                            None => Some(&from.propagation_queue[from.propagation_queue.len() - 1]),
                         }
                     }
                 } else {
@@ -127,12 +130,49 @@ struct DbState {
     environments: BTreeMap<String, EnvironmentState>,
 }
 
+impl DbState {
+    fn prune_propagation_queue(&mut self, name: String) {
+        let mut keep_states = 0;
+        let to_prune = self.environments.get(&name).unwrap();
+        for commit_hash in self.environments.iter().filter_map(|(env_name, state)| {
+            if env_name == &name
+                || state.propagated_from.is_none()
+                || state.propagated_from.as_ref().unwrap() != &name
+            {
+                None
+            } else {
+                state.current.propagated_head.as_ref()
+            }
+        }) {
+            if commit_hash == &to_prune.current.head_commit {
+                continue;
+            }
+            for (idx, old_hash) in to_prune
+                .propagation_queue
+                .iter()
+                .map(|state| &state.head_commit)
+                .enumerate()
+                .skip(keep_states)
+            {
+                if old_hash == commit_hash {
+                    break;
+                }
+                keep_states = keep_states.max(idx + 1);
+            }
+        }
+        let to_prune = self.environments.get_mut(&name).unwrap();
+        to_prune.propagation_queue.drain(keep_states..);
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnvironmentState {
     current: DeployState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub propagated_from: Option<String>,
     #[serde(skip_serializing_if = "VecDeque::is_empty")]
     #[serde(default)]
-    history: VecDeque<DeployState>,
+    propagation_queue: VecDeque<DeployState>,
 }
 
 impl EnvironmentState {
