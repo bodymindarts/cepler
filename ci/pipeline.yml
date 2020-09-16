@@ -20,6 +20,7 @@ groups:
 - name: release
   jobs:
   - test-unit
+  - test-integration
 #   - build-release-image
 #   - bump-image
 # - name: deployments
