@@ -9,5 +9,10 @@ docker:
 integration: build
 	bats -t -r test/integration
 
+test-in-ci:
+	cargo clippy --all-features
+	cargo test --all-features --verbose --locked
+
+
 
 .PHONY: test

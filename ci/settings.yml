@@ -1,0 +1,11 @@
+meta:
+  github_owner: bodymindarts
+  github_repo: cepler
+  github_private_key: ((github-ssh-key.private_key))
+  github_access_token: ((github-access-token))
+  git_uri: git@github.com:bodymindarts/cepler.git
+  git_branch: main
+
+  docker_registry: eu.gcr.io/misthos-network-control-plane
+  docker_registry_user: ((docker-creds.username))
+  docker_registry_password: ((docker-creds.password))

@@ -1,0 +1,109 @@
+meta:
+  github_owner: (( param "Please specify the org the git repo is in" ))
+  github_repo: (( param "Please specify the name of the repository" ))
+  github_private_key: (( param "Please specify the private key fot github auth" ))
+  github_access_token: (( param "Please specify access token for creating releases" ))
+  git_uri: (( param "Please specify the uri to the git repo" ))
+  git_branch: (( param "Please specify the branch to checkout" ))
+
+  docker_registry_user: (( param "Please specify docker_registry_user" ))
+  docker_registry_password: (( param "Please specify docker_registry_password" ))
+  docker_registry: (( param "Please specify the name of the docker_registry" ))
+  pipeline_image: (( concat meta.docker_registry "/cepler-pipeline" ))
+
+  task_image_config:
+    type: registry-image
+    source:
+      username: (( grab meta.docker_registry_user ))
+      password: (( grab meta.docker_registry_password ))
+      repository: (( grab meta.pipeline_image ))
+
+groups:
+- name: release
+  jobs:
+  - test-unit
+#   - build-release-image
+#   - bump-image
+# - name: deployments
+#   jobs:
+#   - testflight
+#   - staging
+- name: image
+  jobs:
+    - build-pipeline-image
+
+jobs:
+- name: build-pipeline-image
+  serial: true
+  plan:
+  - {get: pipeline-image-def, trigger: true}
+  - task: build
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: vito/oci-build-task
+      inputs:
+      - name: pipeline-image-def
+      outputs:
+      - name: image
+      params:
+        CONTEXT: pipeline-image-def/ci/image
+      run:
+        path: build
+  - put: pipeline-image
+    params:
+      image: image/image.tar
+
+- name: test-unit
+  plan:
+  - in_parallel:
+    - { get: repo, trigger: true }
+    - { get: pipeline-tasks }
+  - in_parallel:
+    - task: test-unit
+      config:
+        platform: linux
+        image_resource: (( grab meta.task_image_config ))
+        inputs:
+        - name: pipeline-tasks
+        - name: repo
+        caches:
+        - path: cargo-home
+        - path: cargo-target-dir
+        run:
+          path: pipeline-tasks/ci/tasks/test-unit.sh
+
+resources:
+- name: repo
+  type: git
+  source:
+    ignore_paths: ["ci/*[^md]"]
+    uri: (( grab meta.git_uri ))
+    branch: (( grab meta.git_branch ))
+    private_key: (( grab meta.github_private_key ))
+
+- name: pipeline-tasks
+  type: git
+  source:
+    uri: (( grab meta.git_uri ))
+    branch: (( grab meta.git_branch ))
+    paths: [ci/tasks/*, Makefile]
+    private_key: (( grab meta.github_private_key ))
+
+- name: pipeline-image
+  type: registry-image
+  source:
+    username: (( grab meta.docker_registry_user ))
+    password: (( grab meta.docker_registry_password ))
+    repository: (( grab meta.pipeline_image ))
+
+- name: pipeline-image-def
+  type: git
+  source:
+    uri: (( grab meta.git_uri ))
+    branch: (( grab meta.git_branch ))
+    paths: [ci/image/Dockerfile]
+    private_key: (( grab meta.github_private_key ))
