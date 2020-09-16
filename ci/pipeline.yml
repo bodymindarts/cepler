@@ -74,6 +74,25 @@ jobs:
         run:
           path: pipeline-tasks/ci/tasks/test-unit.sh
 
+- name: test-integration
+  plan:
+  - in_parallel:
+    - { get: repo, trigger: true }
+    - { get: pipeline-tasks }
+  - in_parallel:
+    - task: test-integration
+      config:
+        platform: linux
+        image_resource: (( grab meta.task_image_config ))
+        inputs:
+        - name: pipeline-tasks
+        - name: repo
+        caches:
+        - path: cargo-home
+        - path: cargo-target-dir
+        run:
+          path: pipeline-tasks/ci/tasks/test-integration.sh
+
 resources:
 - name: repo
   type: git
