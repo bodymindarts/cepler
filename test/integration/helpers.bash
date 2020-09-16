@@ -1,10 +1,14 @@
 REPO_ROOT=$(git rev-parse --show-toplevel)
-cepler=${REPO_ROOT}/target/debug/cepler
 
 cmd() {
-  echo " ${REPO_ROOT}/target/debug/cepler -c test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/cepler.yml $@"
+  cepler=${REPO_ROOT}/target/debug/cepler
+  if [[ ! -z ${CARGO_TARGET_DIR} ]] ; then
+    cepler=${CARGO_TARGET_DIR}/debug/cepler
+  fi
 
-  ${REPO_ROOT}/target/debug/cepler -c test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/cepler.yml $@
+  echo "${cepler} -c test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/cepler.yml $@"
+
+  ${cepler} -c test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/cepler.yml $@
 }
 
 config() {
