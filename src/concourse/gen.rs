@@ -114,27 +114,27 @@ fn user_image_resource(image: &serde_yaml::Value) -> String {
     let mut res = String::new();
     for line in serde_yaml::to_string(&image)
         .expect("Couldn't serialize image")
-        .split("\n")
+        .split('\n')
         .skip(1)
     {
         res.push_str("        ");
         res.push_str(line);
         res.push_str("\n")
     }
-    res.trim_end_matches("\n").to_string()
+    res.trim_end_matches('\n').to_string()
 }
 fn user_run(run: &serde_yaml::Value) -> String {
     let mut res = String::new();
     for line in serde_yaml::to_string(&run)
         .expect("Couldn't serialize image")
-        .split("\n")
+        .split('\n')
         .skip(1)
     {
         res.push_str("        ");
         res.push_str(line);
         res.push_str("\n")
     }
-    res.trim_end_matches("\n").to_string()
+    res.trim_end_matches('\n').to_string()
 }
 
 #[derive(Debug, Serialize)]
