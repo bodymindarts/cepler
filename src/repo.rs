@@ -123,7 +123,7 @@ impl Repo {
             None,
             Some(&mut rebase_options),
         )?;
-        let sig = Signature::now("Cepler", "bot@cepler.io")?;
+        let sig = Signature::now("Cepler", "bot@cepler.dev")?;
         while let Some(_) = rebase.next() {
             rebase.commit(None, &sig, None)?;
         }
@@ -185,16 +185,11 @@ impl Repo {
             .map(|res| res.expect("Couldn't list file"))
             .collect();
         let repo = Self::open().expect("Couldn't re-open repo");
-        files.into_iter().filter_map(move |file| {
-            if repo.is_trackable_file(&file)
+        files.into_iter().filter(move |file| {
+            repo.is_trackable_file(&file)
                 && !ignore_files
                     .iter()
                     .any(|p| p.matches(file.to_str().unwrap()))
-            {
-                Some(file)
-            } else {
-                None
-            }
         })
     }
 
@@ -217,7 +212,7 @@ impl Repo {
         Ok(CommitHash(self.head_oid().to_string()))
     }
 
-    pub fn checkout_file_from<'a>(&self, path: &str, commit: &CommitHash) -> Result<()> {
+    pub fn checkout_file_from(&self, path: &str, commit: &CommitHash) -> Result<()> {
         let object = self.inner.find_object(
             Oid::from_str(&commit.0).expect("Couldn't parse Oid"),
             Some(ObjectType::Commit),
@@ -249,10 +244,8 @@ impl Repo {
                 let path = path.expect("Get file");
                 if self.is_trackable_file(&path) {
                     let path = path.as_path();
-                    if !ignore_files.iter().any(|p| p.matches_path(path)) {
-                        if path.is_file() {
-                            std::fs::remove_file(path).expect("Couldn't remove file");
-                        }
+                    if !ignore_files.iter().any(|p| p.matches_path(path)) && path.is_file() {
+                        std::fs::remove_file(path).expect("Couldn't remove file");
                     }
                 }
             }

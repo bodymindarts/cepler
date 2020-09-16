@@ -22,8 +22,8 @@ impl Database {
         let mut state = DbState::default();
         let path = Path::new(path_to_config);
         let dir = match path.parent() {
-            Some(parent) if parent == Path::new("") => format!("{}", STATE_DIR),
-            None => format!("{}", STATE_DIR),
+            Some(parent) if parent == Path::new("") => STATE_DIR.to_string(),
+            None => STATE_DIR.to_string(),
             Some(parent) => format!("{}/{}", parent.to_str().unwrap(), STATE_DIR),
         };
         if Path::new(&dir).is_dir() {
