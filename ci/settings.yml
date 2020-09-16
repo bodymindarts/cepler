@@ -4,6 +4,6 @@ meta:
   git_uri: git@github.com:bodymindarts/cepler.git
   git_branch: ci
 
-  docker_registry: eu.gcr.io/misthos-network-control-plane
+  docker_registry: cepler
   docker_registry_user: ((docker-creds.username))
   docker_registry_password: ((docker-creds.password))
