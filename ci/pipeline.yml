@@ -216,7 +216,7 @@ jobs:
         - name: pipeline-tasks
         - name: prepared-repo
         outputs:
-        - name: x86_64-unknown-linux-gnu
+        - name: x86_64-unknown-linux-musl
         caches:
         - path: cargo-home
         - path: cargo-target-dir
@@ -226,30 +226,29 @@ jobs:
           OUT: x86_64-unknown-linux-musl
         run:
           path: pipeline-tasks/ci/tasks/build-release.sh
-  # - task: github-release
-  #   config:
-  #     image_resource:
-  #       type: docker-image
-  #       source: {repository: (( grab meta.pipeline_image ))}
-  #     platform: linux
-  #     inputs:
-  #     - name: x86_64-unknown-linux-gnu
-  #     - name: arm-unknown-linux-gnueabihf
-  #     - name: version
-  #     - name: prepared-repo
-  #     - name: pipeline-tasks
-  #     outputs:
-  #     - name: gh-release
-  #     params:
-  #       BRANCH: (( grab meta.git_branch ))
-  #     run:
-  #       path: pipeline-tasks/ci/tasks/github-release.sh
-  # - put: github-release
-  #   params:
-  #     name:   gh-release/name
-  #     tag:    gh-release/tag
-  #     body:   gh-release/notes.md
-  #     globs: [gh-release/artifacts/*]
+  - task: github-release
+    config:
+      image_resource:
+        type: docker-image
+        source: {repository: (( grab meta.pipeline_image ))}
+      platform: linux
+      inputs:
+      - name: x86_64-unknown-linux-musl
+      - name: version
+      - name: prepared-repo
+      - name: pipeline-tasks
+      outputs:
+      - name: gh-release
+      params:
+        BRANCH: (( grab meta.git_branch ))
+      run:
+        path: pipeline-tasks/ci/tasks/github-release.sh
+  - put: github-release
+    params:
+      name:   gh-release/name
+      tag:    gh-release/tag
+      body:   gh-release/notes.md
+      globs: [gh-release/artifacts/*]
 
 - name: auto-bump-patch
   plan:

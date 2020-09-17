@@ -19,7 +19,7 @@ pushd ${REPO}
 make build-${TARGET}-release
 
 set -x
-cd ${CARGO_TARGET_DIR}/${TARGET}/release
+cd ${CARGO_TARGET_DIR}/release
 OUT_DIR="${BINARY}-${TARGET}-${VERSION}"
 mkdir "${OUT_DIR}"
 mv ./${BINARY} ${OUT_DIR}
