@@ -113,10 +113,8 @@ mod test {
     fn deserialize_config() {
         let conf = r#"environments:
   testflight:
-    head_files:
-    - file.yml
-hook:
-  cmd: "ls""#;
+    latest:
+    - file.yml"#;
 
         let conf = Config::from_reader(StringReader::new(conf)).unwrap();
         assert!(&conf.environments.get("testflight").unwrap().name == "testflight");
