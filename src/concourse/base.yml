@@ -10,10 +10,10 @@ resource_types:
 - name: cepler-in
   type: registry-image
   source:
-    repository: bodymindarts/cepler
+    repository: cepler/cepler-concourse-resource
     tag: {{image_tag}}
 - name: cepler-out
   type: registry-image
   source:
-    repository: bodymindarts/cepler
+    repository: cepler/cepler-concourse-resource
     tag: {{image_tag}}

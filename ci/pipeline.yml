@@ -10,6 +10,7 @@ meta:
   docker_registry_password: (( param "Please specify docker_registry_password" ))
   docker_registry: (( param "Please specify the name of the docker_registry" ))
   pipeline_image: (( concat meta.docker_registry "/cepler-pipeline" ))
+  concourse_resource_image: (( concat meta.docker_registry "/cepler-concourse-resource" ))
 
   crates_api_token: (( param "Please specify the crates.io api token" ))
 
@@ -65,7 +66,6 @@ jobs:
   - put: pipeline-image
     params:
       image: image/image.tar
-
 
 - name: minor
   public: true
@@ -225,6 +225,26 @@ jobs:
           OUT: x86_64-unknown-linux-musl
         run:
           path: pipeline-tasks/ci/tasks/build-release.sh
+    - task: build-concourse-resource-image
+      privileged: true
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            repository: vito/oci-build-task
+        inputs:
+        - name: prepared-repo
+        outputs:
+        - name: image
+        params:
+          CONTEXT: prepared-repo/git
+        run:
+          path: build
+    - put: concourse-resource-image
+      params:
+        image: image/image.tar
+        additional_tags: version/number
   - task: github-release
     config:
       image_resource: (( grab meta.task_image_config ))
@@ -315,6 +335,13 @@ resources:
     uri: (( grab meta.git_uri ))
     branch: (( grab meta.git_branch ))
     private_key: (( grab meta.github_private_key ))
+
+- name: concourse-resource-image
+  type: registry-image
+  source:
+    username: (( grab meta.docker_registry_user ))
+    password: (( grab meta.docker_registry_password ))
+    repository: (( grab meta.concourse_resource_image ))
 
 - name: pipeline-tasks
   type: git
