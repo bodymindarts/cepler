@@ -7,3 +7,7 @@ meta:
   docker_registry: cepler
   docker_registry_user: ((docker-creds.username))
   docker_registry_password: ((docker-creds.password))
+
+  ci_artifacts_bucket:
+    name: ((ci-artifacts-creds.bucket_name))
+    creds: ((ci-artifacts-creds.json_key))

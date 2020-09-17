@@ -9,6 +9,10 @@ meta:
   docker_registry: (( param "Please specify the name of the docker_registry" ))
   pipeline_image: (( concat meta.docker_registry "/cepler-pipeline" ))
 
+  ci_artifacts_bucket:
+    name: (( param "Please specify the name of the ci artifacts bucket" ))
+    creds: (( param "Please specify the json key to authenticate to ci artifacts buckets" ))
+
   task_image_config:
     type: registry-image
     source:
@@ -19,14 +23,14 @@ meta:
 groups:
 - name: release
   jobs:
+  - rc
+  # - auto-bump-patch
   - test-unit
   - test-integration
+  - minor
+  - major
 #   - build-release-image
 #   - bump-image
-# - name: deployments
-#   jobs:
-#   - testflight
-#   - staging
 - name: image
   jobs:
     - build-pipeline-image
@@ -55,6 +59,98 @@ jobs:
   - put: pipeline-image
     params:
       image: image/image.tar
+
+# - name: auto-bump-patch
+#   plan:
+#   - in_parallel:
+#     - { get: repo }
+#     - { get: pipeline-tasks }
+#     - { get: version, trigger: true, params: { bump: patch, pre: rc }, passed: [release] }
+#   - in_parallel:
+#     - { put: version, params: { file: version/number } }
+#     - do:
+#       - task: set-dev-version
+#         config:
+#           image_resource:
+#             type: docker-image
+#             source: {repository: (( grab meta.pipeline_image ))}
+#           platform: linux
+#           inputs:
+#           - name: version
+#           - name: repo
+#           - name: pipeline-tasks
+#           outputs:
+#           - name: repo
+#           run:
+#             path: pipeline-tasks/ci/tasks/set-dev-version.sh
+#           params:
+#             BRANCH: (( grab meta.git_branch ))
+#       - put: repo
+#         params:
+#           repository: repo
+#           rebase: true
+
+- name: minor
+  public: true
+  plan:
+  - in_parallel:
+    - { get: repo }
+    - { get: pipeline-tasks }
+    - { get: version, params: { bump: minor, pre: rc } }
+  - in_parallel:
+    - { put: version, params: { file: version/number } }
+    - do:
+      - task: set-dev-version
+        config:
+          image_resource:
+            type: docker-image
+            source: {repository: (( grab meta.pipeline_image ))}
+          platform: linux
+          inputs:
+          - name: version
+          - name: repo
+          - name: pipeline-tasks
+          outputs:
+          - name: repo
+          run:
+            path: pipeline-tasks/ci/tasks/set-dev-version.sh
+          params:
+            BRANCH: (( grab meta.git_branch ))
+      - put: repo
+        params:
+          repository: repo
+          rebase: true
+
+- name: major
+  public: true
+  plan:
+  - in_parallel:
+    - { get: repo }
+    - { get: pipeline-tasks }
+    - { get: version, params: { bump: minor, pre: rc } }
+  - in_parallel:
+    - { put: version, params: { file: version/number } }
+    - do:
+      - task: set-dev-version
+        config:
+          image_resource:
+            type: docker-image
+            source: {repository: (( grab meta.pipeline_image ))}
+          platform: linux
+          inputs:
+          - name: version
+          - name: repo
+          - name: pipeline-tasks
+          outputs:
+          - name: repo
+          run:
+            path: pipeline-tasks/ci/tasks/set-dev-version.sh
+          params:
+            BRANCH: (( grab meta.git_branch ))
+      - put: repo
+        params:
+          repository: repo
+          rebase: true
 
 - name: test-unit
   plan:
@@ -94,6 +190,19 @@ jobs:
         run:
           path: pipeline-tasks/ci/tasks/test-integration.sh
 
+- name: rc
+  serial: true
+  plan:
+  - in_parallel:
+    - get: repo
+      trigger: true
+      passed:
+      - test-integration
+      - test-unit
+    - { get: version, params: { pre: rc } }
+  - put: version
+    params: { file: version/number }
+
 resources:
 - name: repo
   type: git
@@ -125,3 +234,12 @@ resources:
     branch: (( grab meta.git_branch ))
     paths: [ci/image/Dockerfile]
     private_key: (( grab meta.github_private_key ))
+
+- name: version
+  type: semver
+  source:
+    initial_version: 0.0.8
+    driver: gcs
+    bucket: (( grab meta.ci_artifacts_bucket.name ))
+    key: cepler/cepler-version
+    json_key: (( grab meta.ci_artifacts_bucket.creds ))

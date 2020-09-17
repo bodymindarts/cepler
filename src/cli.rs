@@ -18,6 +18,7 @@ fn app() -> App<'static, 'static> {
         (@arg GIT_PRIVATE_KEY: --("git-private-key") +takes_value env("GIT_PRIVATE_KEY") "Private key for --clone option")
         (@arg GIT_BRANCH: --("git-branch") +takes_value default_value("main") env("GIT_BRANCH") "Branch for --clone option")
         (@subcommand check =>
+          (about: "Check wether the environment needs deploying. Exit codes: 0 - needs deploying; 1 - internal error; 2 - nothing to deploy")
           (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
         )
         (@subcommand record =>

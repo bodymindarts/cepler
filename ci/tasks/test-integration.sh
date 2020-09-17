@@ -10,6 +10,6 @@ export PATH="${PATH}:${CARGO_TARGET_DIR}/debug/"
 pushd repo
 
 git config --global user.email "bot@cepler.dev"
-git config --global user.name "Ci Bot"
+git config --global user.name "CI Bot"
 
 make integration

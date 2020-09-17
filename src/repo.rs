@@ -123,7 +123,7 @@ impl Repo {
             None,
             Some(&mut rebase_options),
         )?;
-        let sig = Signature::now("Cepler", "bot@cepler.io")?;
+        let sig = Signature::now("Cepler", "bot@cepler.dev")?;
         while let Some(_) = rebase.next() {
             rebase.commit(None, &sig, None)?;
         }
