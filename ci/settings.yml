@@ -10,6 +10,8 @@ meta:
   docker_registry_user: ((docker-creds.username))
   docker_registry_password: ((docker-creds.password))
 
+  crates_api_token: ((crates-api-token.token))
+
   ci_artifacts_bucket:
     name: ((ci-artifacts-creds.bucket_name))
     creds: ((ci-artifacts-creds.json_key))

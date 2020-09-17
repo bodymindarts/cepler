@@ -11,6 +11,8 @@ meta:
   docker_registry: (( param "Please specify the name of the docker_registry" ))
   pipeline_image: (( concat meta.docker_registry "/cepler-pipeline" ))
 
+  crates_api_token: (( param "Please specify the crates.io api token" ))
+
   ci_artifacts_bucket:
     name: (( param "Please specify the name of the ci artifacts bucket" ))
     creds: (( param "Please specify the json key to authenticate to ci artifacts buckets" ))
@@ -32,6 +34,7 @@ groups:
   - rc
   - release
   - auto-bump-patch
+  - publish
 #   - build-release-image
 #   - bump-image
 - name: image
@@ -76,9 +79,7 @@ jobs:
     - do:
       - task: set-dev-version
         config:
-          image_resource:
-            type: docker-image
-            source: {repository: (( grab meta.pipeline_image ))}
+          image_resource: (( grab meta.task_image_config ))
           platform: linux
           inputs:
           - name: version
@@ -107,9 +108,7 @@ jobs:
     - do:
       - task: set-dev-version
         config:
-          image_resource:
-            type: docker-image
-            source: {repository: (( grab meta.pipeline_image ))}
+          image_resource: (( grab meta.task_image_config ))
           platform: linux
           inputs:
           - name: version
@@ -185,9 +184,7 @@ jobs:
     - { get: pipeline-tasks }
   - task: prepare
     config:
-      image_resource:
-        type: docker-image
-        source: {repository: (( grab meta.pipeline_image ))}
+      image_resource: (( grab meta.task_image_config ))
       platform: linux
       inputs:
       - name: version
@@ -211,7 +208,7 @@ jobs:
       config:
         platform: linux
         image_resource:
-          type: docker-image
+          type: registry-image
           source: { repository: clux/muslrust, tag: stable }
         inputs:
         - name: version
@@ -230,9 +227,7 @@ jobs:
           path: pipeline-tasks/ci/tasks/build-release.sh
   - task: github-release
     config:
-      image_resource:
-        type: docker-image
-        source: {repository: (( grab meta.pipeline_image ))}
+      image_resource: (( grab meta.task_image_config ))
       platform: linux
       inputs:
       - name: x86_64-unknown-linux-musl
@@ -263,9 +258,7 @@ jobs:
     - do:
       - task: set-dev-version
         config:
-          image_resource:
-            type: docker-image
-            source: {repository: (( grab meta.pipeline_image ))}
+          image_resource: (( grab meta.task_image_config ))
           platform: linux
           inputs:
           - name: version
@@ -281,6 +274,38 @@ jobs:
         params:
           repository: repo
           rebase: true
+
+- name: publish
+  public: true
+  plan:
+  - in_parallel:
+    - { get: repo, passed: [release] }
+    - { get: version, passed: [release], trigger: true }
+    - { get: pipeline-tasks }
+  - task: publish-to-crates
+    config:
+      image_resource: (( grab meta.task_image_config ))
+      platform: linux
+      inputs:
+      - name: version
+      - name: pipeline-tasks
+      - name: repo
+      params:
+        CRATES_API_TOKEN: (( grab meta.crates_api_token ))
+      caches:
+      - path: cargo-home
+      - path: cargo-target-dir
+      run:
+        path: pipeline-tasks/ci/tasks/publish-to-crates.sh
+  - task: verify-publish
+    config:
+      image_resource: (( grab meta.task_image_config ))
+      platform: linux
+      inputs:
+      - name: version
+      - name: pipeline-tasks
+      run:
+        path: pipeline-tasks/ci/tasks/verify-publish.sh
 
 resources:
 - name: repo

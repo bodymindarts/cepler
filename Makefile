@@ -14,6 +14,6 @@ test-in-ci:
 	cargo test --all-features --verbose --locked
 
 build-x86_64-unknown-linux-musl-release:
-	cargo build --release
+	cargo build --release --locked
 
 .PHONY: test
