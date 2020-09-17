@@ -214,7 +214,7 @@ jobs:
           source:
             username: (( grab meta.osxcross_username ))
             password: (( grab meta.osxcross_password ))
-            repository: (( grab meta.osxcross_password ))
+            repository: (( grab meta.osxcross_repository ))
         inputs:
         - name: version
         - name: pipeline-tasks
