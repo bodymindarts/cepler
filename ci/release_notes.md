@@ -1,1 +1,3 @@
-Empty - please add release notes here
+- Auto push concourse resource image
+on release
+
