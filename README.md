@@ -1,6 +1,6 @@
 # CEPler
 
-Environment Propagator is here to help you manage state of files representing a system deployed to multiple environments.
+Capricious Environment Propagator is here to help you manage state of files representing a system deployed to multiple environments.
 
 ## Installation
 
@@ -22,16 +22,24 @@ The config file specifies:
 cepler.yml
 ```
 environments:
+  # The Name of the Environment
   testflight:
+
+    # List of files (globs) that should (always) trigger a redeploy of this environment
     latest:
     - k8s/service.yml
     - k8s/testflight.yml
+
   staging:
+    # The preceeding environment
     passed: testflight
+    # The files that should trigger once they have been propagated from the preceeding environment
     propagated:
     - k8s/service.yml
+
     latest:
     - k8s/staging.yml
+
   production:
     passed: staging
     propagated:
@@ -42,8 +50,8 @@ environments:
 
 There are 3 basic commands in cepler `check`, `prepare`, `record`.
 - `cepler check -e <environment>` - Check if an environment needs deploying
-- `cepler prepare -e <environment>` - Prepare the state of the files checked out in the current directory for deployment to <environment>
-- `cepler record -e <environment>` -  Record (and commit) the state of files that are currently checked out
+- `cepler prepare -e <environment>` - Prepare the state of the files checked out in the current directory for deployment
+- `cepler record -e <environment>` -  Record (and commit) metadata about files currently checked out and relevant to the environment
 
 There are a number of additional cli flags described via `cepler help [subcommand]`:
 ```
@@ -72,16 +80,21 @@ SUBCOMMANDS:
     prepare      Prepare workspace for hook execution
     record       Record the state of an environment in the statefile
 
-$ cepler help check
-cepler-check
-Check wether the environment needs deploying. Exit codes: 0 - needs deploying; 1 - internal error; 2 - nothing to deploy
+$ cepler help prepare
+cepler-prepare
+Prepare workspace for hook execution
 
 USAGE:
-    cepler check --environment <ENVIRONMENT>
+    cepler prepare [FLAGS] --environment <ENVIRONMENT>
 
 FLAGS:
-    -h, --help    Prints help information
+        --force-clean    Delete all files not referenced in cepler.yml
+    -h, --help           Prints help information
 
 OPTIONS:
     -e, --environment <ENVIRONMENT>    The cepler environment [env: CEPLER_ENVIRONMENT=]
 ```
+
+## Concourse
+
+For information on integration into concourse pipelines refer to the readme at [concourse/README.md](concourse/README.md)
