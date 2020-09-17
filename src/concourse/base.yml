@@ -11,9 +11,9 @@ resource_types:
   type: registry-image
   source:
     repository: bodymindarts/cepler
-    tag: latest
+    tag: {{image_tag}}
 - name: cepler-out
   type: registry-image
   source:
     repository: bodymindarts/cepler
-    tag: latest
+    tag: {{image_tag}}
