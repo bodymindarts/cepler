@@ -203,6 +203,82 @@ jobs:
   - put: version
     params: { file: version/number }
 
+- name: release
+  plan:
+  - in_parallel:
+    - { get: version, passed: [rc], params: {bump: final} }
+    - { get: repo, passed: [rc] }
+    - { get: pipeline-tasks }
+  - task: prepare
+    config:
+      image_resource:
+        type: docker-image
+        source: {repository: (( grab meta.pipeline_image ))}
+      platform: linux
+      inputs:
+      - name: version
+      - name: repo
+      - name: pipeline-tasks
+      outputs:
+      - name: repo
+      params:
+        BRANCH: (( grab meta.git_branch ))
+      run:
+        path: pipeline-tasks/ci/tasks/prepare-repo.sh
+  - in_parallel:
+    - do:
+      - put: repo
+        params:
+          repository: prepared-repo/git
+          merge: true
+      - put: version
+        params: { bump: final }
+    - task: build-static-release
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source: { repository: clux/muslrust, tag: stable }
+        inputs:
+        - name: version
+        - name: pipeline-tasks
+        - name: repo
+        outputs:
+        - name: x86_64-unknown-linux-gnu
+        caches:
+        - path: cargo-home
+        - path: cargo-target-dir
+        params:
+          TARGET: x86_64-unknown-linux-musl
+          REPO: repo
+          OUT: x86_64-unknown-linux-musl
+        run:
+          path: pipeline-tasks/ci/tasks/build-release.sh
+  # - task: github-release
+  #   config:
+  #     image_resource:
+  #       type: docker-image
+  #       source: {repository: (( grab meta.pipeline_image ))}
+  #     platform: linux
+  #     inputs:
+  #     - name: x86_64-unknown-linux-gnu
+  #     - name: arm-unknown-linux-gnueabihf
+  #     - name: version
+  #     - name: prepared-repo
+  #     - name: pipeline-tasks
+  #     outputs:
+  #     - name: gh-release
+  #     params:
+  #       BRANCH: (( grab meta.git_branch ))
+  #     run:
+  #       path: pipeline-tasks/ci/tasks/github-release.sh
+  # - put: github-release
+  #   params:
+  #     name:   gh-release/name
+  #     tag:    gh-release/tag
+  #     body:   gh-release/notes.md
+  #     globs: [gh-release/artifacts/*]
+
 resources:
 - name: repo
   type: git

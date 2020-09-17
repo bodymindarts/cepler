@@ -3,7 +3,6 @@
 WORKSPACE="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../" >/dev/null && pwd )"
 REPO_ROOT="${WORKSPACE}/repo"
 VERSION="$(cat version/number | sed 's/-rc.*/-dev/')"
-REPO_OUT="${WORKSPACE}/out-repo"
 
 pushd $REPO_ROOT
 
@@ -22,5 +21,3 @@ fi
  git add -A
  git status
  git commit -m "Set version to ${VERSION}")
-
-cp -a ${REPO_ROOT} ${REPO_OUT}/git
