@@ -1,10 +1,10 @@
 environments:
   testflight:
-    head_files:
+    latest:
     - test/fixtures/shadowing/*.yml
   staging:
     passed: testflight
-    head_files:
+    latest:
     - test/fixtures/shadowing/staging.yml
-    propagated_files:
+    propagated:
     - test/fixtures/shadowing/*.yml

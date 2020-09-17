@@ -44,8 +44,10 @@ pub struct EnvironmentConfig {
     pub name: String,
     #[serde(rename = "passed")]
     propagated_from: Option<String>,
+    #[serde(rename = "propagated")]
     #[serde(default)]
     propagated_files: Vec<String>,
+    #[serde(rename = "latest")]
     #[serde(default)]
     head_files: Vec<String>,
 }
