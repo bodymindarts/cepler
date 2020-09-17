@@ -1,6 +1,8 @@
 meta:
+  github_owner: bodymindarts
+  github_repo: cepler
   github_private_key: ((github-ssh-key.private_key))
-  github_access_token: ((github-access-token))
+  github_access_token: ((github-access-token.token))
   git_uri: git@github.com:bodymindarts/cepler.git
   git_branch: ci
 

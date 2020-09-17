@@ -1,4 +1,6 @@
 meta:
+  github_owner: (( param "Please specify the org the git repo is in" ))
+  github_repo: (( param "Please specify the name of the repository" ))
   github_private_key: (( param "Please specify the private key fot github auth" ))
   github_access_token: (( param "Please specify access token for creating releases" ))
   git_uri: (( param "Please specify the uri to the git repo" ))
@@ -320,3 +322,10 @@ resources:
     bucket: (( grab meta.ci_artifacts_bucket.name ))
     key: cepler/cepler-version
     json_key: (( grab meta.ci_artifacts_bucket.creds ))
+
+- name: github-release
+  type: github-release
+  source:
+    user:         (( grab meta.github_owner ))
+    repository:   (( grab meta.github_repo ))
+    access_token: (( grab meta.github_access_token ))
