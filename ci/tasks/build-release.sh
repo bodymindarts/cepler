@@ -16,7 +16,7 @@ export CARGO_TARGET_DIR="$(pwd)/cargo-target-dir"
 
 pushd ${REPO}
 
-make build-${TARGET}-release
+REPO=$(pwd) make build-${TARGET}-release
 
 set -x
 cd ${CARGO_TARGET_DIR}/release

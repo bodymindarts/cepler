@@ -13,4 +13,7 @@ test-in-ci:
 build-x86_64-unknown-linux-musl-release:
 	cargo build --release --locked
 
+build-x86_64-apple-darwin-release:
+	/workspace/compile.sh
+
 .PHONY: test
