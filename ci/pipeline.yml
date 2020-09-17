@@ -40,8 +40,6 @@ groups:
   - release
   - auto-bump-patch
   - publish
-#   - build-release-image
-#   - bump-image
 - name: image
   jobs:
     - build-pipeline-image

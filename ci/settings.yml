@@ -4,7 +4,7 @@ meta:
   github_private_key: ((github-ssh-key.private_key))
   github_access_token: ((github-access-token.token))
   git_uri: git@github.com:bodymindarts/cepler.git
-  git_branch: main
+  git_branch: osxcross
 
   docker_registry: cepler
   docker_registry_user: ((docker-creds.username))
