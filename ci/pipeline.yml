@@ -23,12 +23,13 @@ meta:
 groups:
 - name: release
   jobs:
-  - rc
-  - auto-bump-patch
-  - test-unit
-  - test-integration
   - minor
   - major
+  - test-unit
+  - test-integration
+  - rc
+  - release
+  - auto-bump-patch
 #   - build-release-image
 #   - bump-image
 - name: image
