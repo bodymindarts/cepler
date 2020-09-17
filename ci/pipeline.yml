@@ -225,26 +225,27 @@ jobs:
           OUT: x86_64-unknown-linux-musl
         run:
           path: pipeline-tasks/ci/tasks/build-release.sh
-    - task: build-concourse-resource-image
-      privileged: true
-      config:
-        platform: linux
-        image_resource:
-          type: registry-image
-          source:
-            repository: vito/oci-build-task
-        inputs:
-        - name: prepared-repo
-        outputs:
-        - name: image
+    - do:
+      - task: build-concourse-resource-image
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: vito/oci-build-task
+          inputs:
+          - name: prepared-repo
+          outputs:
+          - name: image
+          params:
+            CONTEXT: prepared-repo/git
+          run:
+            path: build
+      - put: concourse-resource-image
         params:
-          CONTEXT: prepared-repo/git
-        run:
-          path: build
-    - put: concourse-resource-image
-      params:
-        image: image/image.tar
-        additional_tags: version/number
+          image: image/image.tar
+          additional_tags: version/number
   - task: github-release
     config:
       image_resource: (( grab meta.task_image_config ))
