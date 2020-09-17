@@ -24,7 +24,7 @@ groups:
 - name: release
   jobs:
   - rc
-  # - auto-bump-patch
+  - auto-bump-patch
   - test-unit
   - test-integration
   - minor
@@ -60,35 +60,6 @@ jobs:
     params:
       image: image/image.tar
 
-# - name: auto-bump-patch
-#   plan:
-#   - in_parallel:
-#     - { get: repo }
-#     - { get: pipeline-tasks }
-#     - { get: version, trigger: true, params: { bump: patch, pre: rc }, passed: [release] }
-#   - in_parallel:
-#     - { put: version, params: { file: version/number } }
-#     - do:
-#       - task: set-dev-version
-#         config:
-#           image_resource:
-#             type: docker-image
-#             source: {repository: (( grab meta.pipeline_image ))}
-#           platform: linux
-#           inputs:
-#           - name: version
-#           - name: repo
-#           - name: pipeline-tasks
-#           outputs:
-#           - name: repo
-#           run:
-#             path: pipeline-tasks/ci/tasks/set-dev-version.sh
-#           params:
-#             BRANCH: (( grab meta.git_branch ))
-#       - put: repo
-#         params:
-#           repository: repo
-#           rebase: true
 
 - name: minor
   public: true
@@ -278,6 +249,36 @@ jobs:
   #     tag:    gh-release/tag
   #     body:   gh-release/notes.md
   #     globs: [gh-release/artifacts/*]
+
+- name: auto-bump-patch
+  plan:
+  - in_parallel:
+    - { get: repo }
+    - { get: pipeline-tasks }
+    - { get: version, trigger: true, params: { bump: patch, pre: rc }, passed: [release] }
+  - in_parallel:
+    - { put: version, params: { file: version/number } }
+    - do:
+      - task: set-dev-version
+        config:
+          image_resource:
+            type: docker-image
+            source: {repository: (( grab meta.pipeline_image ))}
+          platform: linux
+          inputs:
+          - name: version
+          - name: repo
+          - name: pipeline-tasks
+          outputs:
+          - name: repo
+          run:
+            path: pipeline-tasks/ci/tasks/set-dev-version.sh
+          params:
+            BRANCH: (( grab meta.git_branch ))
+      - put: repo
+        params:
+          repository: repo
+          rebase: true
 
 resources:
 - name: repo
