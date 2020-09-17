@@ -192,7 +192,7 @@ jobs:
       - name: repo
       - name: pipeline-tasks
       outputs:
-      - name: repo
+      - name: prepared-repo
       params:
         BRANCH: (( grab meta.git_branch ))
       run:
@@ -214,7 +214,7 @@ jobs:
         inputs:
         - name: version
         - name: pipeline-tasks
-        - name: repo
+        - name: prepared-repo
         outputs:
         - name: x86_64-unknown-linux-gnu
         caches:
@@ -222,7 +222,7 @@ jobs:
         - path: cargo-target-dir
         params:
           TARGET: x86_64-unknown-linux-musl
-          REPO: repo
+          REPO: prepared-repo/git
           OUT: x86_64-unknown-linux-musl
         run:
           path: pipeline-tasks/ci/tasks/build-release.sh
