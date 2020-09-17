@@ -1,3 +1,1 @@
-Dummy
-release
-notes
+Empty - please add release notes here
