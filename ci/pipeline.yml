@@ -225,6 +225,29 @@ jobs:
           OUT: x86_64-unknown-linux-musl
         run:
           path: pipeline-tasks/ci/tasks/build-release.sh
+  - in_parallel:
+    - do:
+      - task: github-release
+        config:
+          image_resource: (( grab meta.task_image_config ))
+          platform: linux
+          inputs:
+          - name: x86_64-unknown-linux-musl
+          - name: version
+          - name: prepared-repo
+          - name: pipeline-tasks
+          outputs:
+          - name: gh-release
+          params:
+            BRANCH: (( grab meta.git_branch ))
+          run:
+            path: pipeline-tasks/ci/tasks/github-release.sh
+      - put: github-release
+        params:
+          name:   gh-release/name
+          tag:    gh-release/tag
+          body:   gh-release/notes.md
+          globs: [gh-release/artifacts/*]
     - do:
       - task: build-concourse-resource-image
         privileged: true
@@ -246,27 +269,6 @@ jobs:
         params:
           image: image/image.tar
           additional_tags: version/number
-  - task: github-release
-    config:
-      image_resource: (( grab meta.task_image_config ))
-      platform: linux
-      inputs:
-      - name: x86_64-unknown-linux-musl
-      - name: version
-      - name: prepared-repo
-      - name: pipeline-tasks
-      outputs:
-      - name: gh-release
-      params:
-        BRANCH: (( grab meta.git_branch ))
-      run:
-        path: pipeline-tasks/ci/tasks/github-release.sh
-  - put: github-release
-    params:
-      name:   gh-release/name
-      tag:    gh-release/tag
-      body:   gh-release/notes.md
-      globs: [gh-release/artifacts/*]
 
 - name: auto-bump-patch
   plan:
