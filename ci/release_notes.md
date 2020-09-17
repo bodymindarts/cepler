@@ -1,4 +1,1 @@
-- Auto push concourse resource image
-on release
-
-more dummy
+Empty - please add release notes here
