@@ -1,1 +1,2 @@
-Empty - please add release notes here
+- final test release
+- yup dummy

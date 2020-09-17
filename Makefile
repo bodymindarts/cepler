@@ -11,6 +11,9 @@ test-in-ci:
 	cargo test --all-features --verbose --locked
 
 build-x86_64-unknown-linux-musl-release:
-	cargo build --release --locked
+	cargo build --release --locked --target x86_64-unknown-linux-musl
+
+build-x86_64-apple-darwin-release:
+	bin/osxcross-compile.sh
 
 .PHONY: test

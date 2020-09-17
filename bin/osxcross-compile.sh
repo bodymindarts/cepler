@@ -1,9 +1,5 @@
 #!/bin/bash
 
-: ${REPO?REPO env var is not set}
-
-cd ${REPO}
-
 MACOS_TARGET="x86_64-apple-darwin"
 
 echo "Building target for platform ${MACOS_TARGET}"
@@ -17,7 +13,7 @@ export LIBZ_SYS_STATIC=1
 export CC=o64-clang
 export CXX=o64-clang++
 
-cargo build --release --target "${MACOS_TARGET}"
+cargo build --release --target "${MACOS_TARGET}" --all-features
 
 echo
 echo Done

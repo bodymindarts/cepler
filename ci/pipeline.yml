@@ -9,6 +9,10 @@ meta:
   docker_registry_user: (( param "Please specify docker_registry_user" ))
   docker_registry_password: (( param "Please specify docker_registry_password" ))
   docker_registry: (( param "Please specify the name of the docker_registry" ))
+  osxcross_username: (( param "Please specify osxcross_username" ))
+  osxcross_password: (( param "Please specify osxcross_password" ))
+  osxcross_repository: (( param "Please specify osxcross_repository" ))
+
   pipeline_image: (( concat meta.docker_registry "/cepler-pipeline" ))
   concourse_resource_image: (( concat meta.docker_registry "/cepler-concourse-resource" ))
 
@@ -36,8 +40,6 @@ groups:
   - release
   - auto-bump-patch
   - publish
-#   - build-release-image
-#   - bump-image
 - name: image
   jobs:
     - build-pipeline-image
@@ -204,7 +206,33 @@ jobs:
           merge: true
       - put: version
         params: { bump: final }
+    - task: build-osx-release
+      privileged: true
+      config:
+        platform: linux
+        image_resource:
+          type: registry-image
+          source:
+            username: (( grab meta.osxcross_username ))
+            password: (( grab meta.osxcross_password ))
+            repository: (( grab meta.osxcross_repository ))
+        inputs:
+        - name: version
+        - name: pipeline-tasks
+        - name: prepared-repo
+        outputs:
+        - name: x86_64-apple-darwin
+        caches:
+        - path: cargo-home
+        - path: cargo-target-dir
+        params:
+          TARGET: x86_64-apple-darwin
+          REPO: prepared-repo/git
+          OUT: x86_64-apple-darwin
+        run:
+          path: pipeline-tasks/ci/tasks/build-release.sh
     - task: build-static-release
+      privileged: true
       config:
         platform: linux
         image_resource:
@@ -232,6 +260,7 @@ jobs:
           image_resource: (( grab meta.task_image_config ))
           platform: linux
           inputs:
+          - name: x86_64-apple-darwin
           - name: x86_64-unknown-linux-musl
           - name: version
           - name: prepared-repo
