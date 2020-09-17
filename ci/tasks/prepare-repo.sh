@@ -5,6 +5,7 @@ set -eu
 VERSION=$(cat version/number)
 WORKSPACE="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../" >/dev/null && pwd )"
 REPO_ROOT="${WORKSPACE}/repo"
+REPO_OUT="${WORKSPACE}/prepared-repo"
 
 if [[ ! -f ${REPO_ROOT}/ci/release_notes.md ]]; then
   echo >&2 "ci/release_notes.md not found.  Did you forget to write them?"
@@ -45,3 +46,5 @@ fi
  git commit -m "Release v${VERSION}"
  git tag "v${VERSION}"
 )
+
+cp -a ${REPO_ROOT} ${REPO_OUT}/git
