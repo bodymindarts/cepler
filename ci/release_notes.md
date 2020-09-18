@@ -1,1 +1,1 @@
-Empty - please add release notes here
+- Report `crate_version` on stderr in concourse operations

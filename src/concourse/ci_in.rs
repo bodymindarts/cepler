@@ -5,6 +5,7 @@ use glob::*;
 use std::{io, path};
 
 pub fn exec(destination: &str) -> Result<()> {
+    eprintln!("Preparing resource - cepler v{}", clap::crate_version!());
     let ResourceConfig {
         source, version, ..
     }: ResourceConfig = serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;

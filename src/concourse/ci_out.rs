@@ -4,6 +4,7 @@ use anyhow::*;
 use std::{io, path};
 
 pub fn exec(origin: &str) -> Result<()> {
+    eprintln!("Recording resource - cepler v{}", clap::crate_version!());
     let ResourceConfig { source, params, .. }: ResourceConfig =
         serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     std::env::set_current_dir(path::Path::new(&format!(

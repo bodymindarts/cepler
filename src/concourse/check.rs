@@ -10,6 +10,10 @@ use std::{
 
 const TMPDIR: &str = "TMPDIR";
 pub fn exec() -> Result<()> {
+    eprintln!(
+        "Checking for new resource - cepler v{}",
+        clap::crate_version!()
+    );
     let resource: ResourceConfig =
         serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     let ResourceConfig {
