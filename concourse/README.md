@@ -88,20 +88,20 @@ concourse:
 
 environments:
   testflight:
-    head_files:
+    latest:
     - k8s/service.yml
     - k8s/testflight.yml
   staging:
     passed: testflight
-    propagated_files:
+    propagated:
     - k8s/service.yml
-    head_files:
+    latest:
     - k8s/staging.yml
   production:
     passed: staging
-    propagated_files:
+    propagated:
     - k8s/service.yml
-    head_files:
+    latest:
     - k8s/production.yml
 
 $ cepler concourse gen > ci/pipeline.yml
