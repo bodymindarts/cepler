@@ -1,2 +1,1 @@
-- Report `crate_version` on stderr in concourse operations
-- Add `ls` command - `cepler ls -e <environment>` lists all files tracked by the current config.
+Empty - please add release notes here
