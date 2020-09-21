@@ -1,6 +1,6 @@
 [package]
 name = "cepler"
-version = "0.1.1"
+version = "0.1.2-dev"
 authors = ["Justin Carter <justin@misthos.io>"]
 edition = "2018"
 license = "MIT"
