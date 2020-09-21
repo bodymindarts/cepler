@@ -21,6 +21,10 @@ fn app() -> App<'static, 'static> {
           (about: "Check wether the environment needs deploying. Exit codes: 0 - needs deploying; 1 - internal error; 2 - nothing to deploy")
           (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
         )
+        (@subcommand ls =>
+          (about: "List all files relevent to a given environment")
+          (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+        )
         (@subcommand record =>
           (about: "Record the state of an environment in the statefile")
           (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
@@ -79,6 +83,7 @@ pub fn run() -> Result<()> {
     }
     match matches.subcommand() {
         ("check", Some(sub_matches)) => check(sub_matches, &matches),
+        ("ls", Some(sub_matches)) => ls(sub_matches, &matches),
         ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
@@ -109,6 +114,21 @@ fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
         Some(_) => {
             println!("Found new state to deploy");
         }
+    }
+    Ok(())
+}
+
+fn ls(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
+    let env = matches.value_of("ENVIRONMENT").unwrap();
+    let config = conf_from_matches(main_matches)?;
+    let ws = Workspace::new(config.1)?;
+    let env = config
+        .0
+        .environments
+        .get(env)
+        .context(format!("Environment '{}' not found in config", env))?;
+    for path in ws.ls(env)? {
+        println!("{}", path);
     }
     Ok(())
 }

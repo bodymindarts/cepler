@@ -14,6 +14,12 @@ impl Workspace {
         })
     }
 
+    pub fn ls(&self, env: &EnvironmentConfig) -> Result<Vec<String>> {
+        let repo = Repo::open()?;
+        let new_env_state = self.construct_env_state(&repo, env, false)?;
+        Ok(new_env_state.files.into_iter().map(|(k, _)| k).collect())
+    }
+
     pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(String, Vec<DiffElem>)>> {
         let repo = Repo::open()?;
         if let Some(previous_env) = env.propagated_from() {
