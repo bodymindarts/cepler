@@ -1,0 +1,10 @@
+environments:
+  testflight:
+    latest:
+    - test/fixtures/simple/file.yml
+  staging:
+    passed: testflight
+    propagated:
+    - test/fixtures/simple/file.yml
+    latest:
+    - test/fixtures/simple/staging.yml
