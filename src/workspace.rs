@@ -105,7 +105,7 @@ impl Workspace {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
-        let diff = if let Some(last_state) = self.db.get_current_state(&env.name) {
+        let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
             new_env_state.diff(last_state)
         } else {
             new_env_state
@@ -135,8 +135,20 @@ impl Workspace {
             eprintln!("Pushing to remote");
             repo.push(config)?;
         }
-        let head_commit = repo.head_commit_hash()?;
-        Ok((head_commit.to_short_ref(), diff))
+        let mut deleted = Vec::new();
+        let files: Vec<_> = diffs
+            .iter()
+            .filter_map(|diff| {
+                if diff.current_state.is_some() {
+                    Some(Path::new(&diff.path))
+                } else {
+                    deleted.push(Path::new(&diff.path));
+                    None
+                }
+            })
+            .collect();
+        let (commit_hash, _) = repo.find_last_changed_commit(files, deleted)?;
+        Ok((commit_hash.to_short_ref(), diffs))
     }
 
     fn construct_env_state(

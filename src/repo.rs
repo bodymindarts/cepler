@@ -277,17 +277,13 @@ impl Repo {
                 let mut found_diff = false;
                 let parent_tree = parent.tree().expect("Couldn't get tree");
                 for file in files.iter() {
-                    println!("testing {:?}", file);
                     let target = head_tree.get_path(file).context("Missing file")?;
                     if let Ok(tree) = parent_tree.get_path(file) {
-                        println!("exists in parent");
                         if tree.id() != target.id() {
-                            println!("not identical in parent");
                             found_diff = true;
                             break;
                         }
                     } else {
-                        println!("doesn't exist in parent");
                         found_diff = true;
                         break;
                     }
@@ -309,7 +305,6 @@ impl Repo {
                 }
             }
             if !go || queue.is_empty() {
-                println!("returning");
                 return Ok((
                     CommitHash(commit.id().to_string()),
                     commit.summary().expect("Couldn't get summary").to_string(),
