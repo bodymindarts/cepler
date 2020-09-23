@@ -159,7 +159,7 @@ impl Repo {
             &sig,
             &sig,
             &format!(
-                "[cepler] Updated {} state!",
+                "[cepler] Updated {} state",
                 path.file_stem().unwrap().to_str().unwrap()
             ),
             &tree,
