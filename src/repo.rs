@@ -277,7 +277,11 @@ impl Repo {
                 let mut found_diff = false;
                 let parent_tree = parent.tree().expect("Couldn't get tree");
                 for file in files.iter() {
-                    let target = head_tree.get_path(file).context("Missing file")?;
+                    let target = if let Ok(target) = head_tree.get_path(file) {
+                        target
+                    } else {
+                        continue;
+                    };
                     if let Ok(tree) = parent_tree.get_path(file) {
                         if tree.id() != target.id() {
                             found_diff = true;
