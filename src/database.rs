@@ -3,7 +3,7 @@ use anyhow::*;
 use glob::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, HashSet, VecDeque},
     fmt,
     fs::File,
     io::{BufReader, Read},
@@ -204,33 +204,51 @@ impl DeployState {
         }
     }
 
-    pub fn equivalent(&self, other: &Self) -> bool {
-        if self.any_dirty || other.any_dirty {
-            eprintln!("Cannot determin state equivalence due to dirty state");
-            false
-        } else if self.files.len() != other.files.len() {
-            if self.files.len() - other.files.len() > 0 {
-                eprintln!("Some files were removed");
-            } else {
-                eprintln!("Some files were added");
-            }
-            false
-        } else {
-            let mut res = true;
-            for ((my_name, my_state), (other_name, other_state)) in
-                self.files.iter().zip(other.files.iter())
-            {
-                if my_name != other_name || my_state.file_hash != other_state.file_hash {
-                    eprintln!("File {} has changed", my_name);
-                    res = false;
+    pub fn diff(&self, other: &DeployState) -> Vec<FileDiff> {
+        let mut removed_files: HashSet<&String> = other.files.keys().collect();
+        let mut diffs: Vec<_> = self
+            .files
+            .iter()
+            .filter_map(|(name, state)| {
+                if let Some(last_state) = other.files.get(name) {
+                    removed_files.remove(&name);
+                    if state.dirty || last_state.dirty || state.file_hash != last_state.file_hash {
+                        eprintln!("File {} has changed", name);
+                        Some(FileDiff {
+                            path: name.clone(),
+                            current_state: Some(state.clone()),
+                            added: false,
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    removed_files.remove(&name);
+                    eprintln!("File {} was added", name);
+                    Some(FileDiff {
+                        path: name.clone(),
+                        current_state: Some(state.clone()),
+                        added: true,
+                    })
                 }
-            }
-            res
-        }
+            })
+            .collect();
+        diffs.extend(removed_files.iter().map(|path| FileDiff {
+            path: path.to_string(),
+            current_state: None,
+            added: false,
+        }));
+        diffs
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+pub struct FileDiff {
+    pub path: String,
+    pub current_state: Option<FileState>,
+    pub added: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileState {
     pub file_hash: FileHash,
     #[serde(skip_serializing_if = "is_false")]

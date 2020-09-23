@@ -1,4 +1,3 @@
-use crate::workspace::DiffElem;
 use serde::{Deserialize, Serialize};
 
 mod gen;
@@ -32,6 +31,12 @@ struct Version {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct OutParams {
     repository: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DiffElem {
+    name: String,
+    value: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

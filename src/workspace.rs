@@ -1,6 +1,6 @@
 use super::{config::EnvironmentConfig, database::*, repo::*};
 use anyhow::*;
-use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 pub struct Workspace {
     path_to_config: String,
@@ -20,7 +20,7 @@ impl Workspace {
         Ok(new_env_state.files.into_iter().map(|(k, _)| k).collect())
     }
 
-    pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(String, Vec<DiffElem>)>> {
+    pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(String, Vec<FileDiff>)>> {
         let repo = Repo::open()?;
         if let Some(previous_env) = env.propagated_from() {
             self.db.get_current_state(&previous_env).context(format!(
@@ -29,20 +29,37 @@ impl Workspace {
             ))?;
         }
         let new_env_state = self.construct_env_state(&repo, env, false)?;
-        if let Some(last) = self.db.get_current_state(&env.name) {
-            return if last.equivalent(&new_env_state) {
-                Ok(None)
-            } else {
-                Ok(Some((
-                    new_env_state.head_commit.to_short_ref(),
-                    get_diff(&new_env_state, Some(last)),
-                )))
-            };
-        }
-        Ok(Some((
-            new_env_state.head_commit.to_short_ref(),
-            get_diff(&new_env_state, None),
-        )))
+        let diffs = if let Some(last) = self.db.get_current_state(&env.name) {
+            let diffs = new_env_state.diff(&last);
+            if diffs.is_empty() {
+                return Ok(None);
+            }
+            diffs
+        } else {
+            new_env_state
+                .files
+                .iter()
+                .map(|(path, state)| FileDiff {
+                    path: path.clone(),
+                    current_state: Some(state.clone()),
+                    added: true,
+                })
+                .collect()
+        };
+        let mut deleted = Vec::new();
+        let files: Vec<_> = diffs
+            .iter()
+            .filter_map(|diff| {
+                if diff.current_state.is_some() {
+                    Some(Path::new(&diff.path))
+                } else {
+                    deleted.push(Path::new(&diff.path));
+                    None
+                }
+            })
+            .collect();
+        let (commit_hash, _) = repo.find_last_changed_commit(files, deleted)?;
+        Ok(Some((commit_hash.to_short_ref(), diffs)))
     }
 
     pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
@@ -84,11 +101,23 @@ impl Workspace {
         commit: bool,
         reset: bool,
         git_config: Option<GitConfig>,
-    ) -> Result<(String, Vec<DiffElem>)> {
+    ) -> Result<(String, Vec<FileDiff>)> {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
-        let diff = get_diff(&new_env_state, self.db.get_current_state(&env.name));
+        let diff = if let Some(last_state) = self.db.get_current_state(&env.name) {
+            new_env_state.diff(last_state)
+        } else {
+            new_env_state
+                .files
+                .iter()
+                .map(|(path, state)| FileDiff {
+                    path: path.clone(),
+                    current_state: Some(state.clone()),
+                    added: true,
+                })
+                .collect()
+        };
         let state_file = self.db.set_current_environment_state(
             env.name.clone(),
             env.propagated_from().cloned(),
@@ -122,7 +151,7 @@ impl Workspace {
         for file in repo.head_files(env.head_filters(), self.ignore_list()) {
             let dirty = repo.is_file_dirty(&file)?;
             let file_name = file.to_str().unwrap().to_string();
-            let (from_commit, message) = repo.find_last_changed_commit(&file)?;
+            let (from_commit, message) = repo.find_last_changed_commit(vec![&file], vec![])?;
             let file_hash = hash_file(file);
             let state = FileState {
                 file_hash,
@@ -168,44 +197,4 @@ impl Workspace {
             glob::Pattern::new(".gitignore").unwrap(),
         ]
     }
-}
-
-fn get_diff(current: &DeployState, last: Option<&DeployState>) -> Vec<DiffElem> {
-    if last.is_none() {
-        return current
-            .files
-            .iter()
-            .map(|(name, state)| DiffElem {
-                name: name.clone(),
-                value: state.to_string(),
-            })
-            .collect();
-    }
-    let last = last.unwrap();
-    current
-        .files
-        .iter()
-        .filter_map(|(name, state)| {
-            if let Some(last_state) = last.files.get(name) {
-                if state.dirty || last_state.dirty || state.file_hash != last_state.file_hash {
-                    Some(DiffElem {
-                        name: name.clone(),
-                        value: state.to_string(),
-                    })
-                } else {
-                    None
-                }
-            } else {
-                Some(DiffElem {
-                    name: name.clone(),
-                    value: state.to_string(),
-                })
-            }
-        })
-        .collect()
-}
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DiffElem {
-    name: String,
-    value: String,
 }

@@ -111,8 +111,8 @@ fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
             println!("Nothing new to deploy");
             std::process::exit(2);
         }
-        Some(_) => {
-            println!("Found new state to deploy");
+        Some((commit, _)) => {
+            println!("Found new state to deploy - trigger commit {}", commit);
         }
     }
     Ok(())

@@ -258,31 +258,58 @@ impl Repo {
         Ok(())
     }
 
-    pub fn find_last_changed_commit(&self, file: &Path) -> Result<(CommitHash, String)> {
-        let commit = self.head_commit();
-        let target = commit
-            .tree()
-            .context("Couldn't resolve tree")?
-            .get_path(file)
-            .context("Trying to record uncommitted file")?;
+    pub fn find_last_changed_commit(
+        &self,
+        files: Vec<&Path>,
+        deleted: Vec<&Path>,
+    ) -> Result<(CommitHash, String)> {
+        let head_commit = self.head_commit();
+        let head_tree = head_commit.tree().context("Couldn't resolve tree")?;
         let mut set = HashSet::new();
         let mut queue = VecDeque::new();
-        set.insert(commit.id());
-        queue.push_back(commit);
+        set.insert(head_commit.id());
+        queue.push_back(head_commit);
 
         loop {
             let commit = queue.pop_front().unwrap();
-            let mut go = false;
+            let mut go = true;
             for parent in commit.parents() {
-                if let Ok(tree) = parent.tree().expect("Couldn't get tree").get_path(file) {
-                    let eq = tree.id() == target.id();
-                    if eq && set.insert(parent.id()) {
-                        queue.push_back(parent);
+                let mut found_diff = false;
+                let parent_tree = parent.tree().expect("Couldn't get tree");
+                for file in files.iter() {
+                    println!("testing {:?}", file);
+                    let target = head_tree.get_path(file).context("Missing file")?;
+                    if let Ok(tree) = parent_tree.get_path(file) {
+                        println!("exists in parent");
+                        if tree.id() != target.id() {
+                            println!("not identical in parent");
+                            found_diff = true;
+                            break;
+                        }
+                    } else {
+                        println!("doesn't exist in parent");
+                        found_diff = true;
+                        break;
                     }
-                    go = go || eq;
+                }
+                if !found_diff {
+                    for file in deleted.iter() {
+                        if parent_tree.get_path(file).is_ok() {
+                            found_diff = true;
+                            break;
+                        }
+                    }
+                }
+                if !found_diff && set.insert(parent.id()) {
+                    queue.push_back(parent);
+                }
+                if found_diff {
+                    go = false;
+                    break;
                 }
             }
             if !go || queue.is_empty() {
+                println!("returning");
                 return Ok((
                     CommitHash(commit.id().to_string()),
                     commit.summary().expect("Couldn't get summary").to_string(),

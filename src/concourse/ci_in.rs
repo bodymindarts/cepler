@@ -75,6 +75,15 @@ pub fn exec(destination: &str) -> Result<()> {
         serde_json::to_string(&ResourceData {
             version,
             metadata: diff
+                .into_iter()
+                .map(|diff| DiffElem {
+                    name: diff.path,
+                    value: diff
+                        .current_state
+                        .map(|state| state.to_string())
+                        .unwrap_or_else(|| String::new())
+                })
+                .collect()
         })?
     );
     Ok(())
