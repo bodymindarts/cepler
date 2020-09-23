@@ -196,7 +196,10 @@ fn get_diff(current: &DeployState, last: Option<&DeployState>) -> Vec<DiffElem> 
                     None
                 }
             } else {
-                None
+                Some(DiffElem {
+                    name: name.clone(),
+                    value: state.to_string(),
+                })
             }
         })
         .collect()
