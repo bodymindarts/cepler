@@ -1,5 +1,6 @@
-use super::{config::EnvironmentConfig, database::*, repo::*};
+use super::{config::*, database::*, repo::*};
 use anyhow::*;
+use std::path::Path;
 
 pub struct Workspace {
     path_to_config: String,
@@ -15,7 +16,7 @@ impl Workspace {
 
     pub fn ls(&self, env: &EnvironmentConfig) -> Result<Vec<String>> {
         let repo = Repo::open()?;
-        let new_env_state = self.construct_env_state(&repo, env, false)?;
+        let new_env_state = self.construct_env_state(&repo, &env.name, false)?;
         Ok(new_env_state.files.into_iter().map(|(k, _)| k).collect())
     }
 
@@ -27,7 +28,7 @@ impl Workspace {
                 previous_env
             ))?;
         }
-        let new_env_state = self.construct_env_state(&repo, env, false)?;
+        let new_env_state = self.construct_env_state(&repo, &env.name, false)?;
         let diffs = if let Some(last) = self.db.get_current_state(&env.name) {
             let diffs = new_env_state.diff(&last);
             if diffs.is_empty() {
@@ -45,6 +46,15 @@ impl Workspace {
                 })
                 .collect()
         };
+        for diff in diffs.iter() {
+            if diff.added {
+                eprintln!("File {} was added", diff.path)
+            } else if diff.current_state.is_some() {
+                eprintln!("File {} changed", diff.path)
+            } else {
+                eprintln!("File {} was removed", diff.path)
+            }
+        }
         Ok(Some((new_env_state.head_commit.to_short_ref(), diffs)))
     }
 
@@ -90,7 +100,7 @@ impl Workspace {
     ) -> Result<(String, Vec<FileDiff>)> {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
-        let new_env_state = self.construct_env_state(&repo, env, true)?;
+        let new_env_state = self.construct_env_state(&repo, &env.name, true)?;
         let head_commit = new_env_state.head_commit.to_short_ref();
         let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
             new_env_state.diff(last_state)
@@ -128,48 +138,161 @@ impl Workspace {
     fn construct_env_state(
         &self,
         repo: &Repo,
-        env: &EnvironmentConfig,
+        env_name: &str,
         recording: bool,
     ) -> Result<DeployState> {
-        let head_commit = repo.head_commit_hash()?;
-        let mut new_env_state = DeployState::new(head_commit);
-        for file in repo.head_files(env.head_filters(), self.ignore_list()) {
-            let dirty = repo.is_file_dirty(&file)?;
-            let file_name = file.to_str().unwrap().to_string();
-            let (from_commit, message) = repo.find_last_changed_commit(&file)?;
-            let file_hash = hash_file(file);
-            let state = FileState {
-                file_hash,
-                dirty,
-                from_commit,
-                message,
-            };
-            new_env_state.files.insert(file_name, state);
+        let current_commit = repo.head_commit_hash()?;
+        let config = repo
+            .get_file_content(
+                current_commit.clone(),
+                Path::new(&self.path_to_config),
+                |bytes| Config::from_reader(bytes),
+            )?
+            .context("Couldn't load config")?;
+        let env = config
+            .environments
+            .get(env_name)
+            .context("Couldn't find environment")?;
+        let database = Database::open_env(
+            &self.path_to_config,
+            &env_name,
+            env.propagated_from(),
+            current_commit.clone(),
+            &repo,
+        )?;
+
+        let mut best_state = self.construct_state_for_commit(
+            &repo,
+            current_commit.clone(),
+            &env,
+            &database,
+            recording,
+        )?;
+        repo.walk_commits_before(current_commit, |commit| {
+            if let Some(state) =
+                self.get_state_if_equivalent(&env_name, &repo, &best_state, commit, recording)?
+            {
+                best_state = state;
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        })?;
+        Ok(best_state)
+    }
+
+    fn get_state_if_equivalent(
+        &self,
+        env_name: &str,
+        repo: &Repo,
+        last_state: &DeployState,
+        commit: CommitHash,
+        recording: bool,
+    ) -> Result<Option<DeployState>> {
+        let config = if let Some(config) =
+            repo.get_file_content(commit.clone(), Path::new(&self.path_to_config), |bytes| {
+                Config::from_reader(bytes)
+            })? {
+            config
+        } else {
+            return Ok(None);
+        };
+        let env = config
+            .environments
+            .get(env_name)
+            .context("Couldn't find environment")?;
+        let database = Database::open_env(
+            &self.path_to_config,
+            &env.name,
+            env.propagated_from(),
+            commit.clone(),
+            &repo,
+        )?;
+        let new_state =
+            self.construct_state_for_commit(&repo, commit, &env, &database, recording)?;
+        if last_state.diff(&new_state).is_empty() {
+            Ok(Some(new_state))
+        } else {
+            Ok(None)
         }
+    }
+
+    fn construct_state_for_commit(
+        &self,
+        repo: &Repo,
+        commit: CommitHash,
+        env: &EnvironmentConfig,
+        database: &Database,
+        recording: bool,
+    ) -> Result<DeployState> {
+        let mut new_env_state = DeployState::new(commit.clone());
         if let Some(previous_env) = env.propagated_from() {
-            if let Some(env_state) = self.db.get_target_propagated_state(&env.name, previous_env) {
+            if let Some(env_state) = database.get_target_propagated_state(&env.name, previous_env) {
                 new_env_state.propagated_head = Some(env_state.head_commit.clone());
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (name, prev_state) in env_state.files.iter() {
-                    if patterns.iter().any(|p| p.matches(&name)) {
-                        let (dirty, file_hash) = if recording {
-                            let file_hash = hash_file(name);
-                            (file_hash != prev_state.file_hash, file_hash)
-                        } else {
-                            (false, prev_state.file_hash.clone())
-                        };
-                        let file_state = FileState {
-                            dirty,
-                            file_hash,
-                            from_commit: prev_state.from_commit.clone(),
-                            message: prev_state.message.clone(),
-                        };
-                        new_env_state.files.insert(name.clone(), file_state);
+                    if let Some(last_hash) = prev_state.file_hash.as_ref() {
+                        if patterns.iter().any(|p| p.matches(&name)) {
+                            let (dirty, file_hash) = if recording {
+                                if let Some(file_hash) = hash_file(name) {
+                                    (&file_hash != last_hash, Some(file_hash))
+                                } else {
+                                    (true, None)
+                                }
+                            } else {
+                                (false, Some(last_hash.clone()))
+                            };
+                            let file_state = FileState {
+                                dirty,
+                                file_hash: file_hash,
+                                from_commit: prev_state.from_commit.clone(),
+                                message: prev_state.message.clone(),
+                            };
+                            new_env_state.files.insert(name.clone(), file_state);
+                        }
                     }
                 }
             }
         }
-
+        let ignore_list = vec![
+            glob::Pattern::new(&self.path_to_config).unwrap(),
+            glob::Pattern::new(&format!("{}/*", database.state_dir)).unwrap(),
+        ];
+        repo.all_files(commit.clone(), |file_hash, path| {
+            if env.head_file_patterns().any(|p| p.matches_path(path))
+                && !ignore_list.iter().any(|p| p.matches_path(path))
+            {
+                let (from_commit, message) =
+                    repo.find_last_changed_commit(&path, commit.clone())?;
+                let state = if recording {
+                    if let Some(on_disk_hash) = hash_file(path) {
+                        FileState {
+                            dirty: file_hash != on_disk_hash,
+                            file_hash: Some(on_disk_hash),
+                            from_commit,
+                            message,
+                        }
+                    } else {
+                        FileState {
+                            dirty: true,
+                            file_hash: None,
+                            from_commit,
+                            message,
+                        }
+                    }
+                } else {
+                    FileState {
+                        dirty: false,
+                        file_hash: Some(file_hash),
+                        from_commit,
+                        message,
+                    }
+                };
+                let file_name = path.to_str().unwrap().to_string();
+                new_env_state.files.insert(file_name, state);
+            }
+            Ok(())
+        })?;
         Ok(new_env_state)
     }
 

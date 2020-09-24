@@ -46,6 +46,43 @@ impl Database {
         })
     }
 
+    pub fn open_env(
+        path_to_config: &str,
+        env_name: &str,
+        propagated_name: Option<&String>,
+        commit: CommitHash,
+        repo: &Repo,
+    ) -> Result<Self> {
+        let path = Path::new(path_to_config);
+        let dir = match path.parent() {
+            Some(parent) if parent == Path::new("") => STATE_DIR.to_string(),
+            None => STATE_DIR.to_string(),
+            Some(parent) => format!("{}/{}", parent.to_str().unwrap(), STATE_DIR),
+        };
+        let env_file = format!("{}/{}.state", dir, env_name);
+        let env_path = Path::new(&env_file);
+        let env_state = repo.get_file_content(commit.clone(), env_path, |bytes| {
+            EnvironmentState::from_reader(bytes)
+        })?;
+        let mut state = DbState::default();
+        if let Some(env_state) = env_state {
+            state.environments.insert(env_name.to_string(), env_state);
+        }
+        if let Some(last_env) = propagated_name {
+            let env_file = format!("{}/{}.state", dir, last_env);
+            let env_path = Path::new(&env_file);
+            if let Some(env_state) = repo.get_file_content(commit, env_path, |bytes| {
+                EnvironmentState::from_reader(bytes)
+            })? {
+                state.environments.insert(last_env.to_string(), env_state);
+            }
+        }
+        Ok(Self {
+            state,
+            state_dir: dir,
+        })
+    }
+
     pub fn set_current_environment_state(
         &mut self,
         name: String,
@@ -212,22 +249,33 @@ impl DeployState {
             .filter_map(|(name, state)| {
                 if let Some(last_state) = other.files.get(name) {
                     removed_files.remove(&name);
-                    if state.dirty || last_state.dirty || state.file_hash != last_state.file_hash {
-                        eprintln!("File {} has changed", name);
+                    if state.file_hash.is_none() && last_state.file_hash.is_none() {
+                        None
+                    } else if state.dirty
+                        || last_state.dirty
+                        || state.file_hash != last_state.file_hash
+                    {
                         Some(FileDiff {
                             path: name.clone(),
-                            current_state: Some(state.clone()),
-                            added: false,
+                            current_state: if state.file_hash.is_some() {
+                                Some(state.clone())
+                            } else {
+                                None
+                            },
+                            added: last_state.file_hash.is_none(),
                         })
                     } else {
                         None
                     }
                 } else {
                     removed_files.remove(&name);
-                    eprintln!("File {} was added", name);
                     Some(FileDiff {
                         path: name.clone(),
-                        current_state: Some(state.clone()),
+                        current_state: if state.file_hash.is_some() {
+                            Some(state.clone())
+                        } else {
+                            None
+                        },
                         added: true,
                     })
                 }
@@ -242,6 +290,7 @@ impl DeployState {
     }
 }
 
+#[derive(Debug)]
 pub struct FileDiff {
     pub path: String,
     pub current_state: Option<FileState>,
@@ -250,7 +299,7 @@ pub struct FileDiff {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileState {
-    pub file_hash: FileHash,
+    pub file_hash: Option<FileHash>,
     #[serde(skip_serializing_if = "is_false")]
     #[serde(default)]
     pub dirty: bool,

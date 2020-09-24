@@ -22,7 +22,7 @@ impl Config {
         Self::from_reader(reader)
     }
 
-    fn from_reader(reader: impl Read) -> Result<Self> {
+    pub fn from_reader(reader: impl Read) -> Result<Self> {
         let mut config: Config = serde_yaml::from_reader(reader)?;
         let all_environments: HashSet<String> = config.environments.keys().cloned().collect();
         for (name, mut env) in config.environments.iter_mut() {

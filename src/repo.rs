@@ -1,7 +1,7 @@
 use anyhow::*;
 use git2::{
     build::CheckoutBuilder, Commit, Cred, MergeOptions, ObjectType, Oid, PushOptions,
-    RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature,
+    RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode, TreeWalkResult,
 };
 use glob::*;
 use serde::{Deserialize, Serialize};
@@ -28,12 +28,17 @@ impl CommitHash {
     }
 }
 
-pub fn hash_file<P: AsRef<Path>>(file: P) -> FileHash {
-    FileHash(
-        Oid::hash_file(ObjectType::Blob, file)
-            .expect("Couldn't hash object")
-            .to_string(),
-    )
+pub fn hash_file<P: AsRef<Path>>(file: P) -> Option<FileHash> {
+    let path = file.as_ref();
+    if path.is_file() {
+        Some(FileHash(
+            Oid::hash_file(ObjectType::Blob, path)
+                .expect("Couldn't hash object")
+                .to_string(),
+        ))
+    } else {
+        None
+    }
 }
 
 pub struct GitConfig {
@@ -193,6 +198,28 @@ impl Repo {
         })
     }
 
+    pub fn all_files<F>(&self, commit: CommitHash, mut f: F) -> Result<()>
+    where
+        F: FnMut(FileHash, &Path) -> Result<()>,
+    {
+        let commit = Oid::from_str(&commit.0).expect("Couldn't parse commit hash");
+        let commit = self.inner.find_commit(commit)?;
+        let tree = commit.tree().context("Couldn't resolve tree")?;
+        let mut ret = Ok(());
+        tree.walk(TreeWalkMode::PreOrder, |dir, entry| {
+            let path_name = format!("{}{}", dir, entry.name().expect("Entry has no name"));
+            let path = Path::new(&path_name);
+            if let Some(ObjectType::Blob) = entry.kind() {
+                if let Err(e) = f(FileHash(entry.id().to_string()), path) {
+                    ret = Err(e);
+                    return TreeWalkResult::Abort;
+                }
+            }
+            TreeWalkResult::Ok
+        })?;
+        ret
+    }
+
     fn is_trackable_file(&self, file: &PathBuf) -> bool {
         let path = file.as_path();
         if self.inner.status_file(path).is_err() {
@@ -202,10 +229,6 @@ impl Repo {
             .inner
             .status_should_ignore(path)
             .expect("Cannot check ignore status")
-    }
-
-    pub fn is_file_dirty(&self, file: &PathBuf) -> Result<bool> {
-        Ok(!self.inner.status_file(file.as_path())?.is_empty())
     }
 
     pub fn head_commit_hash(&self) -> Result<CommitHash> {
@@ -258,8 +281,44 @@ impl Repo {
         Ok(())
     }
 
-    pub fn find_last_changed_commit(&self, file: &Path) -> Result<(CommitHash, String)> {
-        let commit = self.head_commit();
+    pub fn walk_commits_before<F>(&self, commit: CommitHash, mut cb: F) -> Result<()>
+    where
+        F: FnMut(CommitHash) -> Result<bool>,
+    {
+        let commit = Oid::from_str(&commit.0).expect("Couldn't parse commit hash");
+        let commit = self.inner.find_commit(commit)?;
+        let mut set = HashSet::new();
+        let mut queue = VecDeque::new();
+        set.insert(commit.id());
+        for parent in commit.parents() {
+            if set.insert(parent.id()) {
+                queue.push_back(parent);
+            }
+        }
+        loop {
+            let commit = queue.pop_front().unwrap();
+            if !cb(CommitHash(commit.id().to_string()))? {
+                break;
+            }
+            for parent in commit.parents() {
+                if set.insert(parent.id()) {
+                    queue.push_back(parent);
+                }
+            }
+            if queue.is_empty() {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn find_last_changed_commit(
+        &self,
+        file: &Path,
+        from_commit: CommitHash,
+    ) -> Result<(CommitHash, String)> {
+        let commit = Oid::from_str(&from_commit.0).expect("Couldn't parse commit hash");
+        let commit = self.inner.find_commit(commit)?;
         let target = commit
             .tree()
             .context("Couldn't resolve tree")?
@@ -289,6 +348,25 @@ impl Repo {
                 ));
             }
         }
+    }
+
+    pub fn get_file_content<F, T>(&self, commit: CommitHash, file: &Path, f: F) -> Result<Option<T>>
+    where
+        F: Fn(&[u8]) -> Result<T>,
+    {
+        let commit = Oid::from_str(&commit.0).expect("Couldn't parse commit hash");
+        let commit = self.inner.find_commit(commit)?;
+        let tree = commit.tree().context("Couldn't resolve tree")?;
+        let target = if let Ok(target) = tree.get_path(file) {
+            target
+        } else {
+            return Ok(None);
+        };
+        let object = target
+            .to_object(&self.inner)
+            .context("Couldn't create object")?;
+        let blob = object.peel_to_blob().context("Couldn't peel to blob")?;
+        Ok(Some(f(blob.content())?))
     }
 
     fn head_commit(&self) -> Commit<'_> {

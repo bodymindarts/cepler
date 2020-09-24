@@ -13,7 +13,7 @@ teardown_file() {
 }
 
 @test "Ignore unrelated commits" {
-  add_commit="3997b50"
+  add_commit="fde0360"
 
   echo "bla" > `fixture`/bla.yml
   git add .
@@ -22,29 +22,28 @@ teardown_file() {
 }
 
 @test "Reports trigger commit" {
-  add_commit="3997b50"
+  add_commit="fde0360"
   cmd check -e testflight | grep "${add_commit}"
   cmd record -e testflight
-  cmd check -e staging | grep "${add_commit}"
+  head=$(git rev-parse --short HEAD)
+  cmd check -e staging | grep "${head}"
 }
 
 @test "Reports delete" {
-  add_commit="3997b50"
-
   rm `fixture`/file.yml
   git commit -am 'Remove file.yml'
   head=$(git rev-parse --short HEAD)
   cmd check -e testflight | grep "${head}"
-  cmd check -e staging | grep "${add_commit}"
+  record_commit=$(git log -n 1 --pretty=format:%h -- $(state "testflight"))
+  cmd check -e staging | grep "${record_commit}"
 }
 
 @test "Reports original on downstream" {
-  add_commit="3997b50"
-
   echo 'new_flile: {}' > `fixture`/file.yml
   git add .
   git commit -m 'Re-add file.yml'
   head=$(git rev-parse --short HEAD)
   cmd check -e testflight | grep "${head}"
-  cmd check -e staging | grep "${add_commit}"
+  record_commit=$(git log -n 1 --pretty=format:%h -- $(state "testflight"))
+  cmd check -e staging | grep "${record_commit}"
 }
