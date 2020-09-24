@@ -1,6 +1,5 @@
 use super::{config::EnvironmentConfig, database::*, repo::*};
 use anyhow::*;
-use std::path::Path;
 
 pub struct Workspace {
     path_to_config: String,
@@ -46,20 +45,7 @@ impl Workspace {
                 })
                 .collect()
         };
-        let mut deleted = Vec::new();
-        let files: Vec<_> = diffs
-            .iter()
-            .filter_map(|diff| {
-                if diff.current_state.is_some() {
-                    Some(Path::new(&diff.path))
-                } else {
-                    deleted.push(Path::new(&diff.path));
-                    None
-                }
-            })
-            .collect();
-        let (commit_hash, _) = repo.find_last_changed_commit(files, deleted)?;
-        Ok(Some((commit_hash.to_short_ref(), diffs)))
+        Ok(Some((new_env_state.head_commit.to_short_ref(), diffs)))
     }
 
     pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
@@ -105,6 +91,7 @@ impl Workspace {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
+        let head_commit = new_env_state.head_commit.to_short_ref();
         let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
             new_env_state.diff(last_state)
         } else {
@@ -135,20 +122,7 @@ impl Workspace {
             eprintln!("Pushing to remote");
             repo.push(config)?;
         }
-        let mut deleted = Vec::new();
-        let files: Vec<_> = diffs
-            .iter()
-            .filter_map(|diff| {
-                if diff.current_state.is_some() {
-                    Some(Path::new(&diff.path))
-                } else {
-                    deleted.push(Path::new(&diff.path));
-                    None
-                }
-            })
-            .collect();
-        let (commit_hash, _) = repo.find_last_changed_commit(files, deleted)?;
-        Ok((commit_hash.to_short_ref(), diffs))
+        Ok((head_commit, diffs))
     }
 
     fn construct_env_state(
@@ -159,11 +133,10 @@ impl Workspace {
     ) -> Result<DeployState> {
         let head_commit = repo.head_commit_hash()?;
         let mut new_env_state = DeployState::new(head_commit);
-
         for file in repo.head_files(env.head_filters(), self.ignore_list()) {
             let dirty = repo.is_file_dirty(&file)?;
             let file_name = file.to_str().unwrap().to_string();
-            let (from_commit, message) = repo.find_last_changed_commit(vec![&file], vec![])?;
+            let (from_commit, message) = repo.find_last_changed_commit(&file)?;
             let file_hash = hash_file(file);
             let state = FileState {
                 file_hash,
@@ -173,7 +146,6 @@ impl Workspace {
             };
             new_env_state.files.insert(file_name, state);
         }
-
         if let Some(previous_env) = env.propagated_from() {
             if let Some(env_state) = self.db.get_target_propagated_state(&env.name, previous_env) {
                 new_env_state.propagated_head = Some(env_state.head_commit.clone());

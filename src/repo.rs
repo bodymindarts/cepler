@@ -258,54 +258,28 @@ impl Repo {
         Ok(())
     }
 
-    pub fn find_last_changed_commit(
-        &self,
-        files: Vec<&Path>,
-        deleted: Vec<&Path>,
-    ) -> Result<(CommitHash, String)> {
-        let head_commit = self.head_commit();
-        let head_tree = head_commit.tree().context("Couldn't resolve tree")?;
+    pub fn find_last_changed_commit(&self, file: &Path) -> Result<(CommitHash, String)> {
+        let commit = self.head_commit();
+        let target = commit
+            .tree()
+            .context("Couldn't resolve tree")?
+            .get_path(file)
+            .context("Trying to record uncommitted file")?;
         let mut set = HashSet::new();
         let mut queue = VecDeque::new();
-        set.insert(head_commit.id());
-        queue.push_back(head_commit);
+        set.insert(commit.id());
+        queue.push_back(commit);
 
         loop {
             let commit = queue.pop_front().unwrap();
-            let mut go = true;
+            let mut go = false;
             for parent in commit.parents() {
-                let mut found_diff = false;
-                let parent_tree = parent.tree().expect("Couldn't get tree");
-                for file in files.iter() {
-                    let target = if let Ok(target) = head_tree.get_path(file) {
-                        target
-                    } else {
-                        continue;
-                    };
-                    if let Ok(tree) = parent_tree.get_path(file) {
-                        if tree.id() != target.id() {
-                            found_diff = true;
-                            break;
-                        }
-                    } else {
-                        found_diff = true;
-                        break;
+                if let Ok(tree) = parent.tree().expect("Couldn't get tree").get_path(file) {
+                    let eq = tree.id() == target.id();
+                    if eq && set.insert(parent.id()) {
+                        queue.push_back(parent);
                     }
-                }
-                if !found_diff {
-                    for file in deleted.iter() {
-                        if parent_tree.get_path(file).is_ok() {
-                            found_diff = true;
-                            break;
-                        }
-                    }
-                }
-                if !found_diff && set.insert(parent.id()) {
-                    queue.push_back(parent);
-                }
-                if found_diff {
-                    go = false;
-                    break;
+                    go = go || eq;
                 }
             }
             if !go || queue.is_empty() {
