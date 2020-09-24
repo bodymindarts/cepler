@@ -135,6 +135,7 @@ impl Workspace {
         Ok((head_commit, diffs))
     }
 
+    #[allow(clippy::redundant_closure)]
     fn construct_env_state(
         &self,
         repo: &Repo,
@@ -244,7 +245,7 @@ impl Workspace {
                             };
                             let file_state = FileState {
                                 dirty,
-                                file_hash: file_hash,
+                                file_hash,
                                 from_commit: prev_state.from_commit.clone(),
                                 message: prev_state.message.clone(),
                             };
