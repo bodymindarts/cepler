@@ -13,8 +13,9 @@ teardown_file() {
 }
 
 @test "Ignore unrelated commits" {
-  add_commit="fde0360"
+  add_commit="26a58e2"
 
+  cmd check -e testflight | grep "${add_commit}"
   echo "bla" > `fixture`/bla.yml
   git add .
   git commit -m 'Add bla.yml'
@@ -22,8 +23,6 @@ teardown_file() {
 }
 
 @test "Reports trigger commit" {
-  add_commit="fde0360"
-  cmd check -e testflight | grep "${add_commit}"
   cmd record -e testflight
   head=$(git rev-parse --short HEAD)
   cmd check -e staging | grep "${head}"
