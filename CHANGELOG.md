@@ -1,3 +1,12 @@
+# [cepler release v0.2.0](https://github.com/bodymindarts/cepler/releases/tag/v0.2.0)
+
+## Features
+- Check determins head commit based on last commit that actually influenced the environment state (instead of current head)
+
+## Improvements
+- Nicer commit message.  When committing the state via `cepler record` the commit message shouldn't have a `!`
+- Display added files in metadata.
+
 # [cepler release v0.1.1](https://github.com/bodymindarts/cepler/releases/tag/v0.1.1)
 
 - Report `crate_version` on stderr in concourse operations
