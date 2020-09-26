@@ -1,3 +1,8 @@
+# [cepler release v0.2.1](https://github.com/bodymindarts/cepler/releases/tag/v0.2.1)
+
+## Bug Fixes
+- Load cepler.yml from disk when constructing head deploy state
+
 # [cepler release v0.2.0](https://github.com/bodymindarts/cepler/releases/tag/v0.2.0)
 
 ## Features
