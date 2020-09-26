@@ -12,7 +12,7 @@ teardown_file() {
   reset_repo_state
 }
 
-@test "Write cepler.yml" {
+@test "Accepts uncommitted cepler.yml" {
   cat <<EOF > `fixture`/cepler.yml
 environments:
   testflight:
