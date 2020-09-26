@@ -16,7 +16,7 @@ impl Workspace {
 
     pub fn ls(&self, env: &EnvironmentConfig) -> Result<Vec<String>> {
         let repo = Repo::open()?;
-        let new_env_state = self.construct_env_state(&repo, &env.name, false)?;
+        let new_env_state = self.construct_env_state(&repo, &env, false)?;
         Ok(new_env_state.files.into_iter().map(|(k, _)| k).collect())
     }
 
@@ -28,7 +28,7 @@ impl Workspace {
                 previous_env
             ))?;
         }
-        let new_env_state = self.construct_env_state(&repo, &env.name, false)?;
+        let new_env_state = self.construct_env_state(&repo, &env, false)?;
         let diffs = if let Some(last) = self.db.get_current_state(&env.name) {
             let diffs = new_env_state.diff(&last);
             if diffs.is_empty() {
@@ -100,7 +100,7 @@ impl Workspace {
     ) -> Result<(String, Vec<FileDiff>)> {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
-        let new_env_state = self.construct_env_state(&repo, &env.name, true)?;
+        let new_env_state = self.construct_env_state(&repo, &env, true)?;
         let head_commit = new_env_state.head_commit.to_short_ref();
         let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
             new_env_state.diff(last_state)
@@ -139,24 +139,13 @@ impl Workspace {
     fn construct_env_state(
         &self,
         repo: &Repo,
-        env_name: &str,
+        env: &EnvironmentConfig,
         recording: bool,
     ) -> Result<DeployState> {
         let current_commit = repo.head_commit_hash()?;
-        let config = repo
-            .get_file_content(
-                current_commit.clone(),
-                Path::new(&self.path_to_config),
-                |bytes| Config::from_reader(bytes),
-            )?
-            .context("Couldn't load config")?;
-        let env = config
-            .environments
-            .get(env_name)
-            .context("Couldn't find environment")?;
         let database = Database::open_env(
             &self.path_to_config,
-            &env_name,
+            &env.name,
             env.propagated_from(),
             current_commit.clone(),
             &repo,
@@ -171,7 +160,7 @@ impl Workspace {
         )?;
         repo.walk_commits_before(current_commit, |commit| {
             if let Some(state) =
-                self.get_state_if_equivalent(&env_name, &repo, &best_state, commit, recording)?
+                self.get_state_if_equivalent(&env.name, &repo, &best_state, commit, recording)?
             {
                 best_state = state;
                 Ok(true)

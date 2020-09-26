@@ -13,5 +13,12 @@ teardown_file() {
 }
 
 @test "Write cepler.yml" {
+  cat <<EOF > `fixture`/cepler.yml
+environments:
+  testflight:
+    latest:
+    - file.yml
+EOF
+
   cmd check -e testflight
 }
