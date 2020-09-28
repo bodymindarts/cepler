@@ -163,7 +163,7 @@ jobs:
       outputs:
       - name: image
       params:
-        CONTEXT: prepared-repo/git
+        CONTEXT: repo
       run:
         path: build
   - put: concourse-resource-image-edge
