@@ -1,3 +1,9 @@
+# [cepler release v0.2.2](https://github.com/bodymindarts/cepler/releases/tag/v0.2.2)
+
+## Bug Fixes
+
+- Fix `Error: Couldn't find environment` after adding new environment to `cepler.yml`
+
 # [cepler release v0.2.1](https://github.com/bodymindarts/cepler/releases/tag/v0.2.1)
 
 ## Bug Fixes
