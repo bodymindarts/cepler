@@ -187,10 +187,11 @@ impl Workspace {
         } else {
             return Ok(None);
         };
-        let env = config
-            .environments
-            .get(env_name)
-            .context("Couldn't find environment")?;
+        let env = if let Some(env) = config.environments.get(env_name) {
+            env
+        } else {
+            return Ok(None);
+        };
         let database = Database::open_env(
             &self.path_to_config,
             &env.name,
