@@ -36,6 +36,7 @@ groups:
   - major
   - test-unit
   - test-integration
+  - build-concourse-resource-edge
   - rc
   - release
   - auto-bump-patch
@@ -145,6 +146,30 @@ jobs:
         - path: cargo-target-dir
         run:
           path: pipeline-tasks/ci/tasks/test-unit.sh
+
+- name: build-concourse-resource-edge
+  plan:
+  - { get: repo, trigger: true }
+  - task: build-concourse-resource-image
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: vito/oci-build-task
+      inputs:
+      - name: repo
+      outputs:
+      - name: image
+      params:
+        CONTEXT: prepared-repo/git
+      run:
+        path: build
+  - put: concourse-resource-image-edge
+    params:
+      image: image/image.tar
+      additional_tags: version/number
 
 - name: test-integration
   plan:
@@ -371,6 +396,14 @@ resources:
 - name: concourse-resource-image
   type: registry-image
   source:
+    username: (( grab meta.docker_registry_user ))
+    password: (( grab meta.docker_registry_password ))
+    repository: (( grab meta.concourse_resource_image ))
+
+- name: concourse-resource-image-edge
+  type: registry-image
+  source:
+    tag: edge
     username: (( grab meta.docker_registry_user ))
     password: (( grab meta.docker_registry_password ))
     repository: (( grab meta.concourse_resource_image ))
