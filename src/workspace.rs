@@ -17,7 +17,11 @@ impl Workspace {
     pub fn ls(&self, env: &EnvironmentConfig) -> Result<Vec<String>> {
         let repo = Repo::open()?;
         let new_env_state = self.construct_env_state(&repo, &env, false)?;
-        Ok(new_env_state.files.into_iter().map(|(k, _)| k).collect())
+        Ok(new_env_state
+            .files
+            .into_iter()
+            .map(|(k, _)| k.name())
+            .collect())
     }
 
     pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(String, Vec<FileDiff>)>> {
@@ -39,8 +43,8 @@ impl Workspace {
             new_env_state
                 .files
                 .iter()
-                .map(|(path, state)| FileDiff {
-                    path: path.clone(),
+                .map(|(ident, state)| FileDiff {
+                    path: ident.name(),
                     current_state: Some(state.clone()),
                     added: true,
                 })
@@ -79,11 +83,12 @@ impl Workspace {
         if let Some(previous_env) = env.propagated_from() {
             if let Some(env_state) = self.db.get_target_propagated_state(&env.name, previous_env) {
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
-                for (name, state) in env_state.files.iter() {
+                for (ident, state) in env_state.files.iter() {
+                    let name = ident.name();
                     if patterns.iter().any(|p| p.matches(&name))
                         && !head_patterns.iter().any(|p| p.matches(&name))
                     {
-                        repo.checkout_file_from(name, &state.from_commit)?;
+                        repo.checkout_file_from(&name, &state.from_commit)?;
                     }
                 }
             }
@@ -108,8 +113,8 @@ impl Workspace {
             new_env_state
                 .files
                 .iter()
-                .map(|(path, state)| FileDiff {
-                    path: path.clone(),
+                .map(|(ident, state)| FileDiff {
+                    path: ident.name(),
                     current_state: Some(state.clone()),
                     added: true,
                 })
@@ -221,11 +226,12 @@ impl Workspace {
             if let Some(env_state) = database.get_target_propagated_state(&env.name, previous_env) {
                 new_env_state.propagated_head = Some(env_state.head_commit.clone());
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
-                for (name, prev_state) in env_state.files.iter() {
+                for (ident, prev_state) in env_state.files.iter() {
+                    let name = ident.name();
                     if let Some(last_hash) = prev_state.file_hash.as_ref() {
                         if patterns.iter().any(|p| p.matches(&name)) {
                             let (dirty, file_hash) = if recording {
-                                if let Some(file_hash) = hash_file(name) {
+                                if let Some(file_hash) = hash_file(&name) {
                                     (&file_hash != last_hash, Some(file_hash))
                                 } else {
                                     (true, None)
@@ -239,7 +245,10 @@ impl Workspace {
                                 from_commit: prev_state.from_commit.clone(),
                                 message: prev_state.message.clone(),
                             };
-                            new_env_state.files.insert(name.clone(), file_state);
+                            new_env_state.files.insert(
+                                FileIdent::new(name.clone(), Some(previous_env)),
+                                file_state,
+                            );
                         }
                     }
                 }
@@ -280,7 +289,9 @@ impl Workspace {
                     }
                 };
                 let file_name = path.to_str().unwrap().to_string();
-                new_env_state.files.insert(file_name, state);
+                new_env_state
+                    .files
+                    .insert(FileIdent::new(file_name, None), state);
             }
             Ok(())
         })?;

@@ -228,7 +228,24 @@ pub struct DeployState {
     #[serde(default)]
     any_dirty: bool,
     #[serde(default)]
-    pub files: BTreeMap<String, FileState>,
+    pub files: BTreeMap<FileIdent, FileState>,
+}
+
+#[derive(Debug, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct FileIdent(String);
+impl FileIdent {
+    pub fn new(name: String, from: Option<&str>) -> Self {
+        Self(format!(
+            "{{{}}}/{}",
+            from.as_ref().unwrap_or_else(|| &"latest"),
+            name
+        ))
+    }
+
+    pub fn name(&self) -> String {
+        self.0.chars().skip_while(|c| c != &'}').skip(2).collect()
+    }
 }
 
 impl DeployState {
@@ -242,13 +259,13 @@ impl DeployState {
     }
 
     pub fn diff(&self, other: &DeployState) -> Vec<FileDiff> {
-        let mut removed_files: HashSet<&String> = other.files.keys().collect();
+        let mut removed_files: HashSet<&FileIdent> = other.files.keys().collect();
         let mut diffs: Vec<_> = self
             .files
             .iter()
-            .filter_map(|(name, state)| {
-                if let Some(last_state) = other.files.get(name) {
-                    removed_files.remove(&name);
+            .filter_map(|(ident, state)| {
+                if let Some(last_state) = other.files.get(ident) {
+                    removed_files.remove(&ident);
                     if state.file_hash.is_none() && last_state.file_hash.is_none() {
                         None
                     } else if state.dirty
@@ -256,7 +273,7 @@ impl DeployState {
                         || state.file_hash != last_state.file_hash
                     {
                         Some(FileDiff {
-                            path: name.clone(),
+                            path: ident.name(),
                             current_state: if state.file_hash.is_some() {
                                 Some(state.clone())
                             } else {
@@ -268,9 +285,9 @@ impl DeployState {
                         None
                     }
                 } else {
-                    removed_files.remove(&name);
+                    removed_files.remove(&ident);
                     Some(FileDiff {
-                        path: name.clone(),
+                        path: ident.name(),
                         current_state: if state.file_hash.is_some() {
                             Some(state.clone())
                         } else {
@@ -281,8 +298,8 @@ impl DeployState {
                 }
             })
             .collect();
-        diffs.extend(removed_files.iter().map(|path| FileDiff {
-            path: path.to_string(),
+        diffs.extend(removed_files.iter().map(|ident| FileDiff {
+            path: ident.name(),
             current_state: None,
             added: false,
         }));
