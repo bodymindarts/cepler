@@ -238,6 +238,7 @@ impl Workspace {
                                 file_hash,
                                 from_commit: prev_state.from_commit.clone(),
                                 message: prev_state.message.clone(),
+                                propagated: true,
                             };
                             new_env_state.files.insert(name.clone(), file_state);
                         }
@@ -262,6 +263,7 @@ impl Workspace {
                             file_hash: Some(on_disk_hash),
                             from_commit,
                             message,
+                            propagated: false,
                         }
                     } else {
                         FileState {
@@ -269,6 +271,7 @@ impl Workspace {
                             file_hash: None,
                             from_commit,
                             message,
+                            propagated: false,
                         }
                     }
                 } else {
@@ -277,6 +280,7 @@ impl Workspace {
                         file_hash: Some(file_hash),
                         from_commit,
                         message,
+                        propagated: false,
                     }
                 };
                 let file_name = path.to_str().unwrap().to_string();
