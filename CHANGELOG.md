@@ -1,4 +1,6 @@
-# [cepler release v0.3.0](https://github.com/bodymindarts/cepler/releases/tag/v0.3.0)
+# cepler release v0.3.0
+
+*Yanked release*
 
 ## Breaking changes
 - Change the schema of the persisted state file to differentiate between propagated and latest files

@@ -44,19 +44,20 @@ impl Workspace {
                 .files
                 .iter()
                 .map(|(ident, state)| FileDiff {
-                    path: ident.name(),
+                    ident: ident.clone(),
                     current_state: Some(state.clone()),
                     added: true,
                 })
                 .collect()
         };
         for diff in diffs.iter() {
+            let name = diff.ident.name();
             if diff.added {
-                eprintln!("File {} was added", diff.path)
+                eprintln!("File {} was added", name)
             } else if diff.current_state.is_some() {
-                eprintln!("File {} changed", diff.path)
+                eprintln!("File {} changed", name)
             } else {
-                eprintln!("File {} was removed", diff.path)
+                eprintln!("File {} was removed", name)
             }
         }
         Ok(Some((new_env_state.head_commit.to_short_ref(), diffs)))
@@ -114,7 +115,7 @@ impl Workspace {
                 .files
                 .iter()
                 .map(|(ident, state)| FileDiff {
-                    path: ident.name(),
+                    ident: ident.clone(),
                     current_state: Some(state.clone()),
                     added: true,
                 })

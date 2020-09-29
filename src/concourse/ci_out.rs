@@ -36,7 +36,7 @@ pub fn exec(origin: &str) -> Result<()> {
             metadata: diff
                 .into_iter()
                 .map(|diff| DiffElem {
-                    name: diff.path,
+                    name: diff.ident.inner(),
                     value: diff
                         .current_state
                         .map(|state| state.to_string())

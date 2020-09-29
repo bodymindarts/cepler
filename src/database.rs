@@ -231,7 +231,7 @@ pub struct DeployState {
     pub files: BTreeMap<FileIdent, FileState>,
 }
 
-#[derive(Debug, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FileIdent(String);
 impl FileIdent {
@@ -245,6 +245,10 @@ impl FileIdent {
 
     pub fn name(&self) -> String {
         self.0.chars().skip_while(|c| c != &'}').skip(2).collect()
+    }
+
+    pub fn inner(self) -> String {
+        self.0
     }
 }
 
@@ -273,7 +277,7 @@ impl DeployState {
                         || state.file_hash != last_state.file_hash
                     {
                         Some(FileDiff {
-                            path: ident.name(),
+                            ident: ident.clone(),
                             current_state: if state.file_hash.is_some() {
                                 Some(state.clone())
                             } else {
@@ -287,7 +291,7 @@ impl DeployState {
                 } else {
                     removed_files.remove(&ident);
                     Some(FileDiff {
-                        path: ident.name(),
+                        ident: ident.clone(),
                         current_state: if state.file_hash.is_some() {
                             Some(state.clone())
                         } else {
@@ -299,7 +303,7 @@ impl DeployState {
             })
             .collect();
         diffs.extend(removed_files.iter().map(|ident| FileDiff {
-            path: ident.name(),
+            ident: FileIdent::clone(ident),
             current_state: None,
             added: false,
         }));
@@ -309,7 +313,7 @@ impl DeployState {
 
 #[derive(Debug)]
 pub struct FileDiff {
-    pub path: String,
+    pub ident: FileIdent,
     pub current_state: Option<FileState>,
     pub added: bool,
 }
