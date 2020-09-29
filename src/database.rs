@@ -330,7 +330,11 @@ struct PersistedDeployState {
     #[serde(skip_serializing_if = "is_false")]
     #[serde(default)]
     any_dirty: bool,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(default)]
     propagated: BTreeMap<String, FileState>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(default)]
     latest: BTreeMap<String, FileState>,
 }
 impl From<DeployState> for PersistedDeployState {
