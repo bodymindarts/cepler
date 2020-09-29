@@ -1,3 +1,11 @@
+# [cepler release v0.3.0](https://github.com/bodymindarts/cepler/releases/tag/v0.3.0)
+
+##Breaking changes
+- Change the schema of the persisted state file to differentiate between propagated and latest files
+
+##Bug Fix
+- Fix wording for `cepler concourse ci_out` command
+
 # [cepler release v0.2.2](https://github.com/bodymindarts/cepler/releases/tag/v0.2.2)
 
 ## Bug Fixes
