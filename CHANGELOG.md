@@ -1,3 +1,8 @@
+# [cepler release v0.4.0](https://github.com/bodymindarts/cepler/releases/tag/v0.4.0)
+
+## Breaking Changes
+- Encode where the file came from in the state file via `{env}/path/to/file`
+
 # cepler release v0.3.0
 
 *Yanked release*
