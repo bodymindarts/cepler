@@ -219,13 +219,15 @@ impl EnvironmentState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(from = "PersistedDeployState")]
-#[serde(into = "PersistedDeployState")]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DeployState {
     pub head_commit: CommitHash,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub propagated_head: Option<CommitHash>,
+    #[serde(skip_serializing_if = "is_false")]
+    #[serde(default)]
     any_dirty: bool,
+    #[serde(default)]
     pub files: BTreeMap<String, FileState>,
 }
 
@@ -303,8 +305,6 @@ pub struct FileState {
     pub dirty: bool,
     pub from_commit: CommitHash,
     pub message: String,
-    #[serde(skip)]
-    pub propagated: bool,
 }
 
 impl fmt::Display for FileState {
@@ -320,69 +320,4 @@ impl fmt::Display for FileState {
 
 fn is_false(b: &bool) -> bool {
     !b
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PersistedDeployState {
-    head_commit: CommitHash,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    propagated_head: Option<CommitHash>,
-    #[serde(skip_serializing_if = "is_false")]
-    #[serde(default)]
-    any_dirty: bool,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    #[serde(default)]
-    propagated: BTreeMap<String, FileState>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    #[serde(default)]
-    latest: BTreeMap<String, FileState>,
-}
-impl From<DeployState> for PersistedDeployState {
-    fn from(
-        DeployState {
-            head_commit,
-            propagated_head,
-            any_dirty,
-            files,
-        }: DeployState,
-    ) -> Self {
-        let mut propagated = BTreeMap::new();
-        let mut latest = BTreeMap::new();
-        for (key, state) in files.into_iter() {
-            if state.propagated {
-                propagated.insert(key, state);
-            } else {
-                latest.insert(key, state);
-            }
-        }
-        Self {
-            head_commit,
-            propagated_head,
-            any_dirty,
-            propagated,
-            latest,
-        }
-    }
-}
-impl From<PersistedDeployState> for DeployState {
-    fn from(
-        PersistedDeployState {
-            head_commit,
-            propagated_head,
-            any_dirty,
-            propagated,
-            mut latest,
-        }: PersistedDeployState,
-    ) -> Self {
-        latest.extend(propagated.into_iter().map(|(key, mut state)| {
-            state.propagated = true;
-            (key, state)
-        }));
-        Self {
-            head_commit,
-            propagated_head,
-            any_dirty,
-            files: latest,
-        }
-    }
 }
