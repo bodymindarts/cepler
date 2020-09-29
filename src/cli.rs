@@ -54,7 +54,7 @@ fn app() -> App<'static, 'static> {
           (@arg DESTINATION: * "The destination to put the resource")
          )
          (@subcommand ci_out =>
-          (about: "The in command for the concourse resource")
+          (about: "The out command for the concourse resource")
           (@arg ORIGIN: * "The destination to put the resource")
          )
       )
