@@ -1,1 +1,2 @@
-Empty - please add release notes here
+## Bug Fix
+- Also apply `MatchOptions` for propagated files.

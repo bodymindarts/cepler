@@ -230,7 +230,10 @@ impl Workspace {
                 for (ident, prev_state) in env_state.files.iter() {
                     let name = ident.name();
                     if let Some(last_hash) = prev_state.file_hash.as_ref() {
-                        if patterns.iter().any(|p| p.matches(&name)) {
+                        if patterns
+                            .iter()
+                            .any(|p| p.matches_with(&name, Self::match_options()))
+                        {
                             let (dirty, file_hash) = if recording {
                                 if let Some(file_hash) = hash_file(&name) {
                                     (&file_hash != last_hash, Some(file_hash))
