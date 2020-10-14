@@ -260,8 +260,12 @@ impl Workspace {
             glob::Pattern::new(&format!("{}/*", database.state_dir)).unwrap(),
         ];
         repo.all_files(commit.clone(), |file_hash, path| {
-            if env.head_file_patterns().any(|p| p.matches_path(path))
-                && !ignore_list.iter().any(|p| p.matches_path(path))
+            if env
+                .head_file_patterns()
+                .any(|p| p.matches_path_with(path, Self::match_options()))
+                && !ignore_list
+                    .iter()
+                    .any(|p| p.matches_path_with(path, Self::match_options()))
             {
                 let (from_commit, message) =
                     repo.find_last_changed_commit(&path, commit.clone())?;
@@ -306,5 +310,13 @@ impl Workspace {
             glob::Pattern::new(".git/*").unwrap(),
             glob::Pattern::new(".gitignore").unwrap(),
         ]
+    }
+
+    fn match_options() -> glob::MatchOptions {
+        glob::MatchOptions {
+            case_sensitive: true,
+            require_literal_separator: true,
+            require_literal_leading_dot: true,
+        }
     }
 }
