@@ -1,3 +1,15 @@
+# [cepler release v0.4.2](https://github.com/bodymindarts/cepler/releases/tag/v0.4.2)
+
+## Bug Fix
+- Use explicit `MatchOptions` when testing glob pattern:
+  ```
+  glob::MatchOptions {
+      case_sensitive: true,
+      require_literal_separator: true,
+      require_literal_leading_dot: true,
+  }
+  ```
+
 # [cepler release v0.4.1](https://github.com/bodymindarts/cepler/releases/tag/v0.4.1)
 
 ## Deprecation
