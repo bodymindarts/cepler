@@ -1,3 +1,9 @@
+# [cepler release v0.4.1](https://github.com/bodymindarts/cepler/releases/tag/v0.4.1)
+
+## Deprecation
+
+- Remove `concourse gen` subcommand. For integration with concourse pipelines see the ongoing work at https://github.com/bodymindarts/cepler-templates
+
 # [cepler release v0.4.0](https://github.com/bodymindarts/cepler/releases/tag/v0.4.0)
 
 ## Breaking Changes
