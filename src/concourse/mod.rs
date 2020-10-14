@@ -1,11 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-mod gen;
-
 pub mod check;
 pub mod ci_in;
 pub mod ci_out;
-pub use gen::ConcourseGen;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ResourceConfig {

@@ -1,8 +1,0 @@
-- name: {{name}}
-  type: {{type}}
-  source:
-    uri: {{repo_uri}}
-    branch: {{branch}}
-    private_key: {{git_private_key}}
-    environment: {{environment}}
-    config: {{path_to_config}}

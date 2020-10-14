@@ -1,5 +1,5 @@
 use super::{
-    concourse::{self, ConcourseGen},
+    concourse::{self},
     config::Config,
     repo::*,
     workspace::Workspace,
@@ -43,9 +43,6 @@ fn app() -> App<'static, 'static> {
         (@subcommand concourse =>
          (@setting SubcommandRequiredElseHelp)
          (about: "Subcommand for concourse integration")
-         (@subcommand gen =>
-          (about: "Generate a concourse pipeline")
-         )
          (@subcommand check =>
           (about: "The check command for the concourse resource")
          )
@@ -87,7 +84,6 @@ pub fn run() -> Result<()> {
         ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
-            ("gen", Some(_)) => concourse_gen(conf_from_matches(&matches)?),
             ("check", Some(_)) => concourse_check(),
             ("ci_in", Some(matches)) => concourse_in(&matches),
             ("ci_out", Some(matches)) => concourse_out(&matches),
@@ -173,16 +169,6 @@ fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     Ok(())
 }
 
-fn concourse_gen((conf, path_to_conf): (Config, String)) -> Result<()> {
-    if conf.concourse.is_none() {
-        return Err(anyhow!("concourse: key not specified"));
-    }
-    println!(
-        "{}",
-        ConcourseGen::new(conf, path_to_conf).render_pipeline()
-    );
-    Ok(())
-}
 fn concourse_check() -> Result<()> {
     concourse::check::exec()
 }
