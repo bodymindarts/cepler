@@ -1,3 +1,8 @@
+# [cepler release v0.4.4](https://github.com/bodymindarts/cepler/releases/tag/v0.4.4)
+
+## Bug Fix
+- Also apply `MatchOptions` for when checking out files
+
 # [cepler release v0.4.3](https://github.com/bodymindarts/cepler/releases/tag/v0.4.3)
 
 ## Bug Fix

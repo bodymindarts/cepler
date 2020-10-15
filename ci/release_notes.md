@@ -1,2 +1,1 @@
-## Bug Fix
-- Also apply `MatchOptions` for when checking out files
+Empty - please add release notes here
