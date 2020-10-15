@@ -176,7 +176,7 @@ impl Repo {
         Ok(())
     }
 
-    pub fn head_files(
+    fn head_files(
         &self,
         filters: &[String],
         ignore_files: Vec<Pattern>,
@@ -192,9 +192,16 @@ impl Repo {
         let repo = Self::open().expect("Couldn't re-open repo");
         files.into_iter().filter(move |file| {
             repo.is_trackable_file(&file)
-                && !ignore_files
-                    .iter()
-                    .any(|p| p.matches(file.to_str().unwrap()))
+                && !ignore_files.iter().any(|p| {
+                    p.matches_with(
+                        file.to_str().unwrap(),
+                        glob::MatchOptions {
+                            case_sensitive: true,
+                            require_literal_separator: true,
+                            require_literal_leading_dot: true,
+                        },
+                    )
+                })
         })
     }
 
@@ -267,7 +274,17 @@ impl Repo {
                 let path = path.expect("Get file");
                 if self.is_trackable_file(&path) {
                     let path = path.as_path();
-                    if !ignore_files.iter().any(|p| p.matches_path(path)) && path.is_file() {
+                    if !ignore_files.iter().any(|p| {
+                        p.matches_path_with(
+                            path,
+                            glob::MatchOptions {
+                                case_sensitive: true,
+                                require_literal_separator: true,
+                                require_literal_leading_dot: true,
+                            },
+                        )
+                    }) && path.is_file()
+                    {
                         std::fs::remove_file(path).expect("Couldn't remove file");
                     }
                 }
