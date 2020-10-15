@@ -1,3 +1,8 @@
+# [cepler release v0.4.5](https://github.com/bodymindarts/cepler/releases/tag/v0.4.5)
+
+## Bug Fix
+- Fix `prepare` command
+
 # [cepler release v0.4.4](https://github.com/bodymindarts/cepler/releases/tag/v0.4.4)
 
 ## Bug Fix

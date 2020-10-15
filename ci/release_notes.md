@@ -1,2 +1,1 @@
-## Bug Fix
-- Fix `prepare` command
+Empty - please add release notes here
