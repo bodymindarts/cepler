@@ -190,7 +190,7 @@ impl Repo {
             .map(|res| res.expect("Couldn't list file"))
             .collect();
         let repo = Self::open().expect("Couldn't re-open repo");
-        files.into_iter().filter(move |file| {
+        let filter = move |file: &PathBuf| {
             repo.is_trackable_file(&file)
                 && !ignore_files.iter().any(|p| {
                     p.matches_with(
@@ -202,7 +202,8 @@ impl Repo {
                         },
                     )
                 })
-        })
+        };
+        files.into_iter().filter(move |file| filter(file))
     }
 
     pub fn all_files<F>(&self, commit: CommitHash, mut f: F) -> Result<()>
@@ -274,7 +275,7 @@ impl Repo {
                 let path = path.expect("Get file");
                 if self.is_trackable_file(&path) {
                     let path = path.as_path();
-                    if !ignore_files.iter().any(|p| {
+                    let check = |p: &glob::Pattern| {
                         p.matches_path_with(
                             path,
                             glob::MatchOptions {
@@ -283,8 +284,8 @@ impl Repo {
                                 require_literal_leading_dot: true,
                             },
                         )
-                    }) && path.is_file()
-                    {
+                    };
+                    if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
                         std::fs::remove_file(path).expect("Couldn't remove file");
                     }
                 }
