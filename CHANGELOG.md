@@ -1,3 +1,8 @@
+# [cepler release v0.4.3](https://github.com/bodymindarts/cepler/releases/tag/v0.4.3)
+
+## Bug Fix
+- Also apply `MatchOptions` for propagated files.
+
 # [cepler release v0.4.2](https://github.com/bodymindarts/cepler/releases/tag/v0.4.2)
 
 ## Bug Fix
