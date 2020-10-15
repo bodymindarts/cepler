@@ -75,8 +75,12 @@ impl Workspace {
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         for file_buf in env.propagated_files() {
             let file = file_buf.to_str().unwrap().to_string();
-            if !ignore_list.iter().any(|p| p.matches(&file))
-                && !head_patterns.iter().any(|p| p.matches(&file))
+            if !ignore_list
+                .iter()
+                .any(|p| p.matches_with(&file, Self::match_options()))
+                && !head_patterns
+                    .iter()
+                    .any(|p| p.matches_with(&file, Self::match_options()))
             {
                 std::fs::remove_file(file_buf).expect("Couldn't remove file");
             }
@@ -86,8 +90,12 @@ impl Workspace {
                 let patterns: Vec<_> = env.propagated_file_patterns().collect();
                 for (ident, state) in env_state.files.iter() {
                     let name = ident.name();
-                    if patterns.iter().any(|p| p.matches(&name))
-                        && !head_patterns.iter().any(|p| p.matches(&name))
+                    if patterns
+                        .iter()
+                        .any(|p| p.matches_with(&name, Self::match_options()))
+                        && !head_patterns
+                            .iter()
+                            .any(|p| p.matches_with(&name, Self::match_options()))
                     {
                         repo.checkout_file_from(&name, &state.from_commit)?;
                     }

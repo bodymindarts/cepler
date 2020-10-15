@@ -1,0 +1,16 @@
+environments:
+  subdir:
+    latest:
+    - test/fixtures/glob/**/*.yml
+  testflight:
+    latest:
+    - test/fixtures/glob/*.yml
+    - test/fixtures/glob/subdir/shared.yml
+    - test/fixtures/glob/subdir/testflight.yml
+  staging:
+    passed: testflight
+    propagated:
+    - test/fixtures/glob/*.yml
+    - test/fixtures/glob/subdir/shared.yml
+    latest:
+    - test/fixtures/glob/subdir/staging.yml
