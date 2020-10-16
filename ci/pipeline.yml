@@ -170,7 +170,6 @@ jobs:
   - put: concourse-resource-image-edge
     params:
       image: image/image.tar
-      additional_tags: version/number
 
 - name: test-integration
   plan:
