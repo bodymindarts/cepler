@@ -164,6 +164,7 @@ jobs:
       - name: image
       params:
         CONTEXT: repo
+        DOCKERFILE: repo/images/concourse/Dockerfile
       run:
         path: build
   - put: concourse-resource-image-edge
@@ -317,6 +318,7 @@ jobs:
           - name: image
           params:
             CONTEXT: prepared-repo/git
+            DOCKERFILE: prepared-repo/git/images/concourse/Dockerfile
           run:
             path: build
       - put: concourse-resource-image
