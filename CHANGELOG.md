@@ -1,3 +1,9 @@
+# [cepler release v0.4.6](https://github.com/bodymindarts/cepler/releases/tag/v0.4.6)
+
+## Bug fix
+
+- Handle removing files when a directory is specified in `cepler.yml`
+
 # [cepler release v0.4.5](https://github.com/bodymindarts/cepler/releases/tag/v0.4.5)
 
 ## Bug Fix
