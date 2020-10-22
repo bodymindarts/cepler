@@ -1,1 +1,3 @@
-Empty - please add release notes here
+## Bug fix
+
+- Handle removing files when a directory is specified in `cepler.yml`

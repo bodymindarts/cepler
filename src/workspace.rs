@@ -81,6 +81,7 @@ impl Workspace {
                 && !head_patterns
                     .iter()
                     .any(|p| p.matches_with(&file, Self::match_options()))
+                && Path::new(&file).is_file()
             {
                 std::fs::remove_file(file_buf).expect("Couldn't remove file");
             }
