@@ -149,11 +149,12 @@ impl Database {
                                     {
                                         if existing_state.file_hash != file_state.file_hash {
                                             ret = state;
+                                            break;
                                         }
                                     } else {
                                         ret = state;
+                                        break;
                                     }
-                                    break;
                                 }
                             }
                         }
