@@ -1,0 +1,11 @@
+environments:
+  testflight:
+    latest:
+    - test/fixtures/propagation/propagated.yml
+    - test/fixtures/propagation/testflight.yml
+  staging:
+    passed: testflight
+    propagated:
+    - test/fixtures/propagation/propagated.yml
+    latest:
+    - test/fixtures/propagation/staging.yml
