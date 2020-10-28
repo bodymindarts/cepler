@@ -114,7 +114,13 @@ impl Database {
         &self,
         env: &str,
         propagated_from: &str,
+        patterns: &Vec<glob::Pattern>,
     ) -> Option<&DeployState> {
+        let match_options = glob::MatchOptions {
+            case_sensitive: true,
+            require_literal_separator: true,
+            require_literal_leading_dot: true,
+        };
         match (
             self.state.environments.get(env),
             self.state.environments.get(propagated_from),
@@ -124,17 +130,34 @@ impl Database {
                     if from_head == &from.current.head_commit || from.propagation_queue.is_empty() {
                         Some(&from.current)
                     } else {
-                        match from
-                            .propagation_queue
-                            .iter()
-                            .enumerate()
-                            .find(|(_, state)| &state.head_commit == from_head)
-                        {
-                            Some((idx, _)) if idx == 0 => Some(&from.current),
-
-                            Some((idx, _)) => Some(&from.propagation_queue[idx - 1]),
-                            None => Some(&from.propagation_queue[from.propagation_queue.len() - 1]),
+                        let mut ret = &from.current;
+                        for state in from.propagation_queue.iter() {
+                            if &state.head_commit == from_head {
+                                break;
+                            }
+                            for (ident, file_state) in state.files.iter() {
+                                let file_name = ident.name();
+                                if patterns
+                                    .iter()
+                                    .any(|p| p.matches_with(&file_name, match_options))
+                                {
+                                    if let Some((_, existing_state)) = env
+                                        .current
+                                        .files
+                                        .iter()
+                                        .find(|(ident, _)| ident.name() == file_name)
+                                    {
+                                        if existing_state.file_hash != file_state.file_hash {
+                                            ret = state;
+                                        }
+                                    } else {
+                                        ret = state;
+                                    }
+                                    break;
+                                }
+                            }
                         }
+                        Some(ret)
                     }
                 } else {
                     Some(&from.current)
