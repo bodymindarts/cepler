@@ -114,7 +114,7 @@ impl Database {
         &self,
         env: &str,
         propagated_from: &str,
-        patterns: &Vec<glob::Pattern>,
+        patterns: &[glob::Pattern],
     ) -> Option<&DeployState> {
         let match_options = glob::MatchOptions {
             case_sensitive: true,
