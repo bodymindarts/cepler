@@ -1,3 +1,8 @@
+# [cepler release v0.4.7](https://github.com/bodymindarts/cepler/releases/tag/v0.4.7)
+
+## Bug Fix
+- Fix detecting state to deploye when propagation queue only contains changes to unrelated files
+
 # [cepler release v0.4.6](https://github.com/bodymindarts/cepler/releases/tag/v0.4.6)
 
 ## Bug fix
