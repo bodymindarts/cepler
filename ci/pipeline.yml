@@ -435,7 +435,7 @@ resources:
 - name: version
   type: semver
   source:
-    initial_version: 0.0.8
+    initial_version: 0.4.8-rc.1
     driver: gcs
     bucket: (( grab meta.ci_artifacts_bucket.name ))
     key: cepler/cepler-version

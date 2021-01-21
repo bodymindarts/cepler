@@ -262,7 +262,7 @@ impl FileIdent {
     pub fn new(name: String, from: Option<&str>) -> Self {
         Self(format!(
             "{{{}}}/{}",
-            from.as_ref().unwrap_or_else(|| &"latest"),
+            from.as_ref().unwrap_or(&"latest"),
             name
         ))
     }

@@ -11,13 +11,11 @@ description = "Concourse Environment Propagator"
 
 fail-on-warnings = []
 
-vendored-openssl = ["git2/vendored-openssl"]
-
 [dependencies]
 anyhow = "1.0"
 clap = "2.33"
 env_logger="0.7"
-git2 = "0.13"
+git2 = { version = "0.13", features = ["vendored-openssl"] }
 glob = "0.3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
