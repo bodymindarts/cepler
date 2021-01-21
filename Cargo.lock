@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "cepler"
-version = "0.4.8"
+version = "0.4.9-dev"
 dependencies = [
  "anyhow",
  "clap",
