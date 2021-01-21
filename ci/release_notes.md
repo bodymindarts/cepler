@@ -1,1 +1,3 @@
-Empty - please add release notes here
+## Improvements
+
+- Minor code improvements / compiled with latest rust version
