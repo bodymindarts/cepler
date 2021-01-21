@@ -1,3 +1,9 @@
+# [cepler release v0.4.8](https://github.com/bodymindarts/cepler/releases/tag/v0.4.8)
+
+## Improvements
+
+- Minor code improvements / compiled with latest rust version
+
 # [cepler release v0.4.7](https://github.com/bodymindarts/cepler/releases/tag/v0.4.7)
 
 ## Bug Fix
