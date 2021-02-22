@@ -55,8 +55,8 @@ There are 3 basic commands in cepler `check`, `prepare`, `record`.
 
 There are a number of additional cli flags described via `cepler help [subcommand]`:
 ```
-$ cepler help
-cepler 0.0.11
+$ cepler --help
+cepler 0.4.8
 
 USAGE:
     cepler [OPTIONS] <SUBCOMMAND>
@@ -77,9 +77,10 @@ SUBCOMMANDS:
                  2 - nothing to deploy
     concourse    Subcommand for concourse integration
     help         Prints this message or the help of the given subcommand(s)
+    ls           List all files relevent to a given environment
     prepare      Prepare workspace for hook execution
     record       Record the state of an environment in the statefile
-
+    
 $ cepler help prepare
 cepler-prepare
 Prepare workspace for hook execution
