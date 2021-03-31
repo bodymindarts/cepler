@@ -1,3 +1,9 @@
+# [cepler release v0.4.9](https://github.com/bodymindarts/cepler/releases/tag/v0.4.9)
+
+## Bug Fix
+
+- Fix panic in repos that only have 1 commit
+
 # [cepler release v0.4.8](https://github.com/bodymindarts/cepler/releases/tag/v0.4.8)
 
 ## Improvements

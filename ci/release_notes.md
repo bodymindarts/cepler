@@ -1,3 +1,1 @@
-## Bug Fix
-
-- Fix panic in repos that only have 1 commit
+Empty - please add release notes here
