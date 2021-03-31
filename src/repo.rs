@@ -314,6 +314,9 @@ impl Repo {
             }
         }
         loop {
+            if queue.is_empty() {
+                break;
+            }
             let commit = queue.pop_front().unwrap();
             if !cb(CommitHash(commit.id().to_string()))? {
                 break;
@@ -322,9 +325,6 @@ impl Repo {
                 if set.insert(parent.id()) {
                     queue.push_back(parent);
                 }
-            }
-            if queue.is_empty() {
-                break;
             }
         }
         Ok(())
