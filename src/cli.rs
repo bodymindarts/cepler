@@ -13,7 +13,7 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
-        (@arg CLONE_DIR: --("clone") +takes_value requires_all(&["GIT_URL", "GIT_PRIVATE_KEY"]) "Clone the repository into <dir>")
+        (@arg CLONE_DIR: --("clone") +takes_value requires_all(&["GIT_URL", "GIT_PRIVATE_KEY"]) "Clone the repository into <dir>. Pulls latest changes if already present.")
         (@arg GIT_URL: --("git-url") +takes_value env("GIT_URL") "Remote url for --clone option")
         (@arg GIT_PRIVATE_KEY: --("git-private-key") +takes_value env("GIT_PRIVATE_KEY") "Private key for --clone option")
         (@arg GIT_BRANCH: --("git-branch") +takes_value default_value("main") env("GIT_BRANCH") "Branch for --clone option")
