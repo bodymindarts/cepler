@@ -1,3 +1,8 @@
+# [cepler release v0.5.0](https://github.com/bodymindarts/cepler/releases/tag/v0.5.0)
+
+## Features
+- add `reproduce` command to reset the workspace into the currently deployed state for an environment
+
 # [cepler release v0.4.9](https://github.com/bodymindarts/cepler/releases/tag/v0.4.9)
 
 ## Bug Fix
