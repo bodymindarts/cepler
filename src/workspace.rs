@@ -72,8 +72,7 @@ impl Workspace {
                     .iter()
                     .map(|(ident, _)| ident.name())
                     .collect();
-                let ignore_list = self.ignore_list();
-                repo.checkout_head(Some(&file_names), ignore_list.clone())?;
+                repo.checkout_head(Some(&file_names), self.ignore_list())?;
             }
             for (ident, state) in last_state.files.iter() {
                 repo.checkout_file_from(&ident.name(), &state.from_commit)?;

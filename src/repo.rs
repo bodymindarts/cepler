@@ -60,7 +60,7 @@ impl Repo {
             dir,
         }: GitConfig,
     ) -> Result<Self> {
-        let callbacks = remote_callbacks(private_key)?;
+        let callbacks = remote_callbacks(private_key);
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
 
@@ -79,7 +79,7 @@ impl Repo {
             ..
         }: GitConfig,
     ) -> Result<()> {
-        let callbacks = remote_callbacks(private_key)?;
+        let callbacks = remote_callbacks(private_key);
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
@@ -105,7 +105,7 @@ impl Repo {
             ..
         }: GitConfig,
     ) -> Result<()> {
-        let callbacks = remote_callbacks(private_key.clone())?;
+        let callbacks = remote_callbacks(private_key.clone());
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
@@ -134,7 +134,7 @@ impl Repo {
         }
         rebase.finish(None)?;
         let mut push_options = PushOptions::new();
-        push_options.remote_callbacks(remote_callbacks(private_key)?);
+        push_options.remote_callbacks(remote_callbacks(private_key));
         remote.push(
             &[format!(
                 "{}:{}",
@@ -396,10 +396,10 @@ impl Repo {
     }
 }
 
-fn remote_callbacks(key: String) -> Result<RemoteCallbacks<'static>> {
+fn remote_callbacks(key: String) -> RemoteCallbacks<'static> {
     let mut callbacks = RemoteCallbacks::new();
     callbacks.credentials(move |_url, username_from_url, _allowed_types| {
         Cred::ssh_key_from_memory(username_from_url.unwrap(), None, &key, None)
     });
-    Ok(callbacks)
+    callbacks
 }
