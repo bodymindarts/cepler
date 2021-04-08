@@ -77,6 +77,7 @@ teardown_file() {
   cmd record -e testflight
 
   cmd reproduce -e staging
-  cmd prepare -e staging
   grep 'file_new' `fixture`/file.yml
+  cmd prepare -e staging
+  grep 'file_reproduce' `fixture`/file.yml
 }
