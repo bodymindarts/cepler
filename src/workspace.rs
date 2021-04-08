@@ -63,6 +63,26 @@ impl Workspace {
         Ok(Some((new_env_state.head_commit.to_short_ref(), diffs)))
     }
 
+    pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
+        let repo = Repo::open()?;
+        if let Some(last_state) = self.db.get_current_state(&env.name) {
+            if force_clean {
+                let file_names: Vec<String> = last_state
+                    .files
+                    .iter()
+                    .map(|(ident, _)| ident.name())
+                    .collect();
+                let ignore_list = self.ignore_list();
+                repo.checkout_head(Some(&file_names), ignore_list.clone())?;
+            }
+            for (ident, state) in last_state.files.iter() {
+                repo.checkout_file_from(&ident.name(), &state.from_commit)?;
+            }
+            Ok(())
+        } else {
+            Err(anyhow!("No state recorded for {}", env.name))
+        }
+    }
     pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
         let repo = Repo::open()?;
         let head_files = if force_clean {

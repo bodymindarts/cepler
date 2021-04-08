@@ -40,6 +40,11 @@ fn app() -> App<'static, 'static> {
           (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
           (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
         )
+        (@subcommand reproduce =>
+          (about: "Reproduce workspace according to last recorded state")
+          (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+          (@arg FORCE_CLEAN: --("force-clean") "Delete all files not referenced in cepler.yml")
+        )
         (@subcommand concourse =>
          (@setting SubcommandRequiredElseHelp)
          (about: "Subcommand for concourse integration")
@@ -82,6 +87,7 @@ pub fn run() -> Result<()> {
         ("check", Some(sub_matches)) => check(sub_matches, &matches),
         ("ls", Some(sub_matches)) => ls(sub_matches, &matches),
         ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
+        ("reproduce", Some(sub_matches)) => reproduce(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
             ("check", Some(_)) => concourse_check(),
@@ -141,6 +147,21 @@ fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
         .context(format!("Environment '{}' not found in config", env))?;
     let ws = Workspace::new(config.1)?;
     ws.prepare(env, force_clean)?;
+    Ok(())
+}
+fn reproduce(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
+    let env = matches.value_of("ENVIRONMENT").unwrap();
+    let force_clean: bool = matches.is_present("FORCE_CLEAN");
+    if force_clean {
+        println!("WARNING removing all non-cepler specified files");
+    }
+    let env = config
+        .0
+        .environments
+        .get(env)
+        .context(format!("Environment '{}' not found in config", env))?;
+    let ws = Workspace::new(config.1)?;
+    ws.reproduce(env, force_clean)?;
     Ok(())
 }
 

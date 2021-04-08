@@ -69,3 +69,14 @@ teardown_file() {
   run cmd check -e staging
   [ "$status" -eq 2 ]
 }
+
+@test "Reproduce should reset file" {
+  echo "file_reproduce: {}" > `fixture`/file.yml
+  git commit -am 'Update file.yml for reproduction'
+  cmd check -e testflight
+  cmd record -e testflight
+
+  cmd reproduce -e staging
+  cmd prepare -e staging
+  grep 'file_new' `fixture`/file.yml
+}
