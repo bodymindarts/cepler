@@ -68,43 +68,4 @@ The `put` operation will commit the state via the command `cepler record -e <env
 
 ## Pipeline generation
 
-If you don't want to embed the resource into an existing pipeline you can also let `cepler` generate a simple pipeline by adding config under the `concourse` key in the `cepler.yml` config file:
-```
-$ cat cepler.yml
-concourse:
-  repo:
-    uri: "git@github.com:bodymindarts/cepler-test"
-    branch: "main"
-    private_key: ((github.private_key))
-  task:
-    image_resource:
-      type: registry-image
-      source:
-        repository: bodymindarts/cepler
-        tag: latest
-    run:
-      path: ls
-      args: ["-al"]
-
-environments:
-  testflight:
-    latest:
-    - k8s/service.yml
-    - k8s/testflight.yml
-  staging:
-    passed: testflight
-    propagated:
-    - k8s/service.yml
-    latest:
-    - k8s/staging.yml
-  production:
-    passed: staging
-    propagated:
-    - k8s/service.yml
-    latest:
-    - k8s/production.yml
-
-$ cepler concourse gen > ci/pipeline.yml
-```
-
-At the moment the generated pipeline does not support many configurations. It is unclear which approach (embedding vs generating) is going to become the more common one. Support for the most likely usecases will be added as it becomes clear what is most useful.
+Please checkout the (cepler-templates)[https://github.com/bodymindarts/cepler-templates] project to find out more about generating best-practices pipelines.
