@@ -110,14 +110,18 @@ impl Repo {
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
         remote.fetch(&[branch.clone()], Some(&mut fo), None)?;
+        println!("head commit");
 
         let head_commit = self
             .inner
             .reference_to_annotated_commit(&self.inner.head()?)?;
+        println!("head commit: {}", head_commit.refname().unwrap());
         let remote_ref = self
             .inner
             .resolve_reference_from_short_name(&format!("origin/{}", branch))?;
+        println!("remote ref: {}", remote_ref.name().unwrap());
         let remote_commit = self.inner.reference_to_annotated_commit(&remote_ref)?;
+        println!("remote commit: {}", remote_commit.refname().unwrap());
         let mut rebase_options = RebaseOptions::new();
         let mut merge_options = MergeOptions::new();
         merge_options.fail_on_conflict(true);
@@ -135,6 +139,12 @@ impl Repo {
         rebase.finish(None)?;
         let mut push_options = PushOptions::new();
         push_options.remote_callbacks(remote_callbacks(private_key));
+        println!("remote push");
+        println!(
+            "{}:{}",
+            head_commit.refname().unwrap(),
+            head_commit.refname().unwrap()
+        );
         remote.push(
             &[format!(
                 "{}:{}",
