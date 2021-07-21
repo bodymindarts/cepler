@@ -64,13 +64,13 @@ pub fn exec() -> Result<()> {
 
     let config = Config::from_file(&source.config)?;
     let ws = Workspace::new(source.config)?;
+    let environment = source
+        .environment
+        .ok_or(anyhow!("Environment not specified in source"))?;
     let env = config
         .environments
-        .get(&source.environment)
-        .context(format!(
-            "Environment '{}' not found in config",
-            source.environment
-        ))?;
+        .get(&environment)
+        .context(format!("Environment '{}' not found in config", environment))?;
     eprintln!("Checking equivalence with last deployed state...");
     let mut res = Vec::new();
     match (version, ws.check(env)?) {

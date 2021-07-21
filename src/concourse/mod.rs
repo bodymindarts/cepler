@@ -16,7 +16,7 @@ struct Source {
     uri: String,
     branch: String,
     private_key: String,
-    environment: String,
+    environment: Option<String>,
     #[serde(default = "default_config_path")]
     config: String,
 }
@@ -28,6 +28,7 @@ struct Version {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct OutParams {
     repository: String,
+    environment: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

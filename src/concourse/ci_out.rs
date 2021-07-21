@@ -7,10 +7,10 @@ pub fn exec(origin: &str) -> Result<()> {
     eprintln!("Recording resource - cepler v{}", clap::crate_version!());
     let ResourceConfig { source, params, .. }: ResourceConfig =
         serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
+    let out_params = params.unwrap();
     std::env::set_current_dir(path::Path::new(&format!(
         "{}/{}",
-        origin,
-        params.unwrap().repository
+        origin, out_params.repository
     )))?;
 
     let conf = GitConfig {
@@ -21,13 +21,15 @@ pub fn exec(origin: &str) -> Result<()> {
     };
     let config = Config::from_file(&source.config)?;
     let mut ws = Workspace::new(source.config)?;
+    let environment = out_params.environment.unwrap_or(
+        source
+            .environment
+            .ok_or(anyhow!("Environment not specified in source"))?,
+    );
     let env = config
         .environments
-        .get(&source.environment)
-        .context(format!(
-            "Environment '{}' not found in config",
-            source.environment
-        ))?;
+        .get(&environment)
+        .context(format!("Environment '{}' not found in config", environment))?;
     let (head, diff) = ws.record_env(env, true, true, Some(conf))?;
     println!(
         "{}",

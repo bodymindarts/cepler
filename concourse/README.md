@@ -38,7 +38,9 @@ a simple usage example within a pipeline to deploy a `staging` environment could
       run:
         path: pipeline-tasks/ci/tasks/deploy-staging.sh
   - put: cepler-staging-out
-    params: { repository: cepler-staging }
+    params:
+      repository: cepler-staging
+    # environment: staging ## optional environment override
 
 resources:
 - name: cepler-staging
