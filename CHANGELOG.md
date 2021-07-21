@@ -1,3 +1,10 @@
+# [cepler release v0.6.0](https://github.com/bodymindarts/cepler/releases/tag/v0.6.0)
+
+## Features
+
+- handle optional `environment:` param in `put` step
+- push to non-existent remote branches
+
 # [cepler release v0.5.0](https://github.com/bodymindarts/cepler/releases/tag/v0.5.0)
 
 ## Features
