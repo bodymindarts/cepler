@@ -29,9 +29,12 @@ pub fn exec(destination: &str) -> Result<()> {
 
     let config = Config::from_file(&source.config)?;
     let ws = Workspace::new(source.config)?;
-    let environment = source
-        .environment
-        .ok_or_else(|| anyhow!("Environment not specified in source"))?;
+    let environment = if let Some(environment) = source.environment {
+        environment
+    } else {
+        eprintln!("No environment specified... providing an empty dir");
+        return empty_repo(version);
+    };
     let env = config
         .environments
         .get(&environment)
@@ -48,22 +51,7 @@ pub fn exec(destination: &str) -> Result<()> {
         }
         None => {
             eprintln!("Nothing new to deploy... providing an empty dir");
-            for path in glob("*")? {
-                let path = path?;
-                if path.is_dir() {
-                    std::fs::remove_dir_all(path).context("Couldn't remove dir")?;
-                } else {
-                    std::fs::remove_file(path).context("Couldn't remove file")?;
-                }
-            }
-            println!(
-                "{}",
-                serde_json::to_string(&ResourceData {
-                    version,
-                    metadata: Vec::new()
-                })?
-            );
-            return Ok(());
+            return empty_repo(version);
         }
         Some((_, diff)) => diff,
     };
@@ -84,6 +72,25 @@ pub fn exec(destination: &str) -> Result<()> {
                         .unwrap_or_else(String::new)
                 })
                 .collect()
+        })?
+    );
+    Ok(())
+}
+
+fn empty_repo(version: Version) -> Result<()> {
+    for path in glob("*")? {
+        let path = path?;
+        if path.is_dir() {
+            std::fs::remove_dir_all(path).context("Couldn't remove dir")?;
+        } else {
+            std::fs::remove_file(path).context("Couldn't remove file")?;
+        }
+    }
+    println!(
+        "{}",
+        serde_json::to_string(&ResourceData {
+            version,
+            metadata: Vec::new()
         })?
     );
     Ok(())
