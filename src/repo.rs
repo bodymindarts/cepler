@@ -142,16 +142,11 @@ impl Repo {
 
         let mut push_options = PushOptions::new();
         push_options.remote_callbacks(remote_callbacks(private_key));
-        eprintln!(
-            "Pushing {}:{}",
-            head_commit.refname().unwrap(),
-            remote_ref.name().unwrap()
-        );
         remote.push(
             &[format!(
                 "{}:{}",
                 head_commit.refname().unwrap(),
-                remote_ref.name().unwrap()
+                head_commit.refname().unwrap(),
             )],
             Some(&mut push_options),
         )?;
