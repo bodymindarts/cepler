@@ -1,1 +1,3 @@
-Empty - please add release notes here
+## Bug fix
+
+- fixed ci_out when HEAD is detached
