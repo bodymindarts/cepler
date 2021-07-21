@@ -1,3 +1,9 @@
+# [cepler release v0.6.2](https://github.com/bodymindarts/cepler/releases/tag/v0.6.2)
+
+## Bug fix
+
+- fixed ci_out when HEAD is detached
+
 # [cepler release v0.6.1](https://github.com/bodymindarts/cepler/releases/tag/v0.6.1)
 
 ## Bug Fix
