@@ -31,7 +31,7 @@ pub fn exec(destination: &str) -> Result<()> {
     let ws = Workspace::new(source.config)?;
     let environment = source
         .environment
-        .ok_or(anyhow!("Environment not specified in source"))?;
+        .ok_or_else(|| anyhow!("Environment not specified in source"))?;
     let env = config
         .environments
         .get(&environment)

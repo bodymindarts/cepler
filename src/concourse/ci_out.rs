@@ -24,7 +24,7 @@ pub fn exec(origin: &str) -> Result<()> {
     let environment = out_params.environment.unwrap_or(
         source
             .environment
-            .ok_or(anyhow!("Environment not specified in source"))?,
+            .ok_or_else(|| anyhow!("Environment not specified in source"))?,
     );
     let env = config
         .environments

@@ -228,14 +228,13 @@ impl Repo {
         ret
     }
 
-    fn is_trackable_file(&self, file: &PathBuf) -> bool {
-        let path = file.as_path();
-        if self.inner.status_file(path).is_err() {
+    fn is_trackable_file(&self, file: &Path) -> bool {
+        if self.inner.status_file(file).is_err() {
             return false;
         }
         !self
             .inner
-            .status_should_ignore(path)
+            .status_should_ignore(file)
             .expect("Cannot check ignore status")
     }
 
