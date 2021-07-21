@@ -1,1 +1,3 @@
-Empty - please add release notes here
+## Features
+
+- handle optional `environment:` param in `put` step
