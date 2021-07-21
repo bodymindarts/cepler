@@ -1,3 +1,9 @@
+# [cepler release v0.6.1](https://github.com/bodymindarts/cepler/releases/tag/v0.6.1)
+
+## Bug Fix
+
+- attempt to fix push to branch
+
 # [cepler release v0.6.0](https://github.com/bodymindarts/cepler/releases/tag/v0.6.0)
 
 ## Features
