@@ -114,6 +114,12 @@ impl Repo {
         let head_commit = self
             .inner
             .reference_to_annotated_commit(&self.inner.head()?)?;
+        self.inner
+            .branch_from_annotated_commit(&branch, &head_commit, true)?;
+        let head_commit = self
+            .inner
+            .reference_to_annotated_commit(&self.inner.head()?)?;
+
         let remote_ref = self
             .inner
             .resolve_reference_from_short_name(&format!("origin/{}", branch))?;
