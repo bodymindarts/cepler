@@ -110,47 +110,35 @@ impl Repo {
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
         remote.fetch(&[branch.clone()], Some(&mut fo), None)?;
-        println!("head commit");
 
         let head_commit = self
             .inner
             .reference_to_annotated_commit(&self.inner.head()?)?;
-        println!("head commit: {}", head_commit.refname().unwrap());
-        let remote_ref = self
+        if let Ok(remote_ref) = self
             .inner
-            .resolve_reference_from_short_name(&format!("origin/{}", branch))?;
-        println!("remote ref: {}", remote_ref.name().unwrap());
-        let remote_commit = self.inner.reference_to_annotated_commit(&remote_ref)?;
-        println!("remote commit: {}", remote_commit.refname().unwrap());
-        let mut rebase_options = RebaseOptions::new();
-        let mut merge_options = MergeOptions::new();
-        merge_options.fail_on_conflict(true);
-        rebase_options.merge_options(merge_options);
-        let mut rebase = self.inner.rebase(
-            Some(&head_commit),
-            Some(&remote_commit),
-            None,
-            Some(&mut rebase_options),
-        )?;
-        let sig = Signature::now("Cepler", "bot@cepler.dev")?;
-        while let Some(_) = rebase.next() {
-            rebase.commit(None, &sig, None)?;
+            .resolve_reference_from_short_name(&format!("origin/{}", branch))
+        {
+            let remote_commit = self.inner.reference_to_annotated_commit(&remote_ref)?;
+            let mut rebase_options = RebaseOptions::new();
+            let mut merge_options = MergeOptions::new();
+            merge_options.fail_on_conflict(true);
+            rebase_options.merge_options(merge_options);
+            let mut rebase = self.inner.rebase(
+                Some(&head_commit),
+                Some(&remote_commit),
+                None,
+                Some(&mut rebase_options),
+            )?;
+            let sig = Signature::now("Cepler", "bot@cepler.dev")?;
+            while let Some(_) = rebase.next() {
+                rebase.commit(None, &sig, None)?;
+            }
+            rebase.finish(None)?;
         }
-        rebase.finish(None)?;
         let mut push_options = PushOptions::new();
         push_options.remote_callbacks(remote_callbacks(private_key));
-        println!("remote push");
-        println!(
-            "{}:{}",
-            head_commit.refname().unwrap(),
-            head_commit.refname().unwrap()
-        );
         remote.push(
-            &[format!(
-                "{}:{}",
-                head_commit.refname().unwrap(),
-                head_commit.refname().unwrap()
-            )],
+            &[format!("{}:{}", head_commit.refname().unwrap(), branch)],
             Some(&mut push_options),
         )?;
         Ok(())
