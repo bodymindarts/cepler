@@ -1,3 +1,9 @@
+# [cepler release v0.6.4](https://github.com/bodymindarts/cepler/releases/tag/v0.6.4)
+
+## Bug fix
+
+- correctly handle missing environment in source spec
+
 # [cepler release v0.6.3](https://github.com/bodymindarts/cepler/releases/tag/v0.6.3)
 
 ## Bug fix

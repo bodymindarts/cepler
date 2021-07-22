@@ -1,3 +1,1 @@
-## Bug fix
-
-- correctly handle missing environment in source spec
+Empty - please add release notes here
