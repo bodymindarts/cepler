@@ -1,3 +1,9 @@
+# [cepler release v0.6.3](https://github.com/bodymindarts/cepler/releases/tag/v0.6.3)
+
+## Bug fix
+
+- add newline at end of state file
+
 # [cepler release v0.6.2](https://github.com/bodymindarts/cepler/releases/tag/v0.6.2)
 
 ## Bug fix

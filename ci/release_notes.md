@@ -1,3 +1,1 @@
-## Bug fix
-
-- add newline at end of state file
+Empty - please add release notes here
