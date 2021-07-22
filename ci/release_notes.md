@@ -1,1 +1,3 @@
-Empty - please add release notes here
+## Bug fix
+
+- correctly handle missing environment in source spec

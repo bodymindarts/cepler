@@ -20,12 +20,12 @@ pub fn exec(origin: &str) -> Result<()> {
         dir: origin.to_string(),
     };
     let config = Config::from_file(&source.config)?;
-    let mut ws = Workspace::new(source.config)?;
-    let environment = out_params.environment.unwrap_or(
+    let environment = out_params.environment.ok_or(()).or({
         source
             .environment
-            .ok_or_else(|| anyhow!("Environment not specified in source"))?,
-    );
+            .ok_or_else(|| anyhow!("Environment not specified in source"))
+    })?;
+    let mut ws = Workspace::new(source.config)?;
     let env = config
         .environments
         .get(&environment)
