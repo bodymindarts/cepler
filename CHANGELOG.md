@@ -1,3 +1,9 @@
+# [cepler release v0.6.5](https://github.com/bodymindarts/cepler/releases/tag/v0.6.5)
+
+## Improvements
+
+- release with latest compiler / clippy warnings
+
 # [cepler release v0.6.4](https://github.com/bodymindarts/cepler/releases/tag/v0.6.4)
 
 ## Bug fix
