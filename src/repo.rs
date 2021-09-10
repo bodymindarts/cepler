@@ -162,7 +162,7 @@ impl Repo {
     pub fn commit_state_file(&self, file_name: String) -> Result<()> {
         let path = Path::new(&file_name);
         let mut index = self.inner.index()?;
-        index.add_path(&path)?;
+        index.add_path(path)?;
         let oid = index.write_tree()?;
         let tree = self.inner.find_tree(oid)?;
         let sig = Signature::now("Cepler", "bot@cepler.io")?;
@@ -183,22 +183,16 @@ impl Repo {
         Ok(())
     }
 
-    fn head_files(
+    fn head_files<'a>(
         &self,
-        filters: &[String],
-        ignore_files: Vec<Pattern>,
-    ) -> impl Iterator<Item = PathBuf> + '_ {
+        filters: &'a [String],
+        ignore_files: &'a Vec<Pattern>,
+    ) -> impl Iterator<Item = PathBuf> + 'a {
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
-        let files: Vec<_> = filters
-            .iter()
-            .map(move |files| glob_with(&files, opts).expect("Couldn't resolve glob"))
-            .flatten()
-            .map(|res| res.expect("Couldn't list file"))
-            .collect();
         let repo = Self::open().expect("Couldn't re-open repo");
         let filter = move |file: &PathBuf| {
-            repo.is_trackable_file(&file)
+            repo.is_trackable_file(file)
                 && !ignore_files.iter().any(|p| {
                     p.matches_with(
                         file.to_str().unwrap(),
@@ -210,7 +204,12 @@ impl Repo {
                     )
                 })
         };
-        files.into_iter().filter(move |file| filter(file))
+        filters
+            .iter()
+            .map(move |files| glob_with(files, opts).expect("Couldn't resolve glob"))
+            .flatten()
+            .map(|res| res.expect("Couldn't list file"))
+            .filter(move |file| filter(file))
     }
 
     pub fn all_files<F>(&self, commit: CommitHash, mut f: F) -> Result<()>
@@ -266,14 +265,14 @@ impl Repo {
     pub fn checkout_head(
         &self,
         filters: Option<&[String]>,
-        ignore_files: Vec<Pattern>,
+        ignore_files: &Vec<Pattern>,
     ) -> Result<()> {
         self.inner
             .reset(self.head_commit().as_object(), ResetType::Hard, None)?;
         if let Some(filters) = filters {
             let mut checkout = CheckoutBuilder::new();
             checkout.force();
-            for path in self.head_files(filters, ignore_files.clone()) {
+            for path in self.head_files(filters, &ignore_files) {
                 checkout.path(path);
             }
 

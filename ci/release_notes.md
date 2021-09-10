@@ -1,1 +1,3 @@
-Empty - please add release notes here
+## Improvements
+
+- release with latest compiler / clippy warnings

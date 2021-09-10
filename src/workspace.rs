@@ -16,7 +16,7 @@ impl Workspace {
 
     pub fn ls(&self, env: &EnvironmentConfig) -> Result<Vec<String>> {
         let repo = Repo::open()?;
-        let new_env_state = self.construct_env_state(&repo, &env, false)?;
+        let new_env_state = self.construct_env_state(&repo, env, false)?;
         Ok(new_env_state
             .files
             .into_iter()
@@ -27,14 +27,14 @@ impl Workspace {
     pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(String, Vec<FileDiff>)>> {
         let repo = Repo::open()?;
         if let Some(previous_env) = env.propagated_from() {
-            self.db.get_current_state(&previous_env).context(format!(
+            self.db.get_current_state(previous_env).context(format!(
                 "Previous environment '{}' not deployed yet",
                 previous_env
             ))?;
         }
-        let new_env_state = self.construct_env_state(&repo, &env, false)?;
+        let new_env_state = self.construct_env_state(&repo, env, false)?;
         let diffs = if let Some(last) = self.db.get_current_state(&env.name) {
-            let diffs = new_env_state.diff(&last);
+            let diffs = new_env_state.diff(last);
             if diffs.is_empty() {
                 return Ok(None);
             }
@@ -72,7 +72,7 @@ impl Workspace {
                     .iter()
                     .map(|(ident, _)| ident.name())
                     .collect();
-                repo.checkout_head(Some(&file_names), self.ignore_list())?;
+                repo.checkout_head(Some(&file_names), &self.ignore_list())?;
             }
             for (ident, state) in last_state.files.iter() {
                 repo.checkout_file_from(&ident.name(), &state.from_commit)?;
@@ -90,7 +90,7 @@ impl Workspace {
             None
         };
         let ignore_list = self.ignore_list();
-        repo.checkout_head(head_files, ignore_list.clone())?;
+        repo.checkout_head(head_files, &ignore_list)?;
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         for file_buf in env.propagated_files() {
             let file = file_buf.to_str().unwrap().to_string();
@@ -137,7 +137,7 @@ impl Workspace {
     ) -> Result<(String, Vec<FileDiff>)> {
         eprintln!("Recording current state");
         let repo = Repo::open()?;
-        let new_env_state = self.construct_env_state(&repo, &env, true)?;
+        let new_env_state = self.construct_env_state(&repo, env, true)?;
         let head_commit = new_env_state.head_commit.to_short_ref();
         let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
             new_env_state.diff(last_state)
@@ -163,7 +163,7 @@ impl Workspace {
         }
         if reset {
             eprintln!("Reseting head to have a clean workspace");
-            repo.checkout_head(None, Vec::new())?;
+            repo.checkout_head(None, &Vec::new())?;
         }
         if let Some(config) = git_config {
             eprintln!("Pushing to remote");
@@ -185,19 +185,19 @@ impl Workspace {
             &env.name,
             env.propagated_from(),
             current_commit.clone(),
-            &repo,
+            repo,
         )?;
 
         let mut best_state = self.construct_state_for_commit(
-            &repo,
+            repo,
             current_commit.clone(),
-            &env,
+            env,
             &database,
             recording,
         )?;
         repo.walk_commits_before(current_commit, |commit| {
             if let Some(state) =
-                self.get_state_if_equivalent(&env.name, &repo, &best_state, commit, recording)?
+                self.get_state_if_equivalent(&env.name, repo, &best_state, commit, recording)?
             {
                 best_state = state;
                 Ok(true)
@@ -234,10 +234,9 @@ impl Workspace {
             &env.name,
             env.propagated_from(),
             commit.clone(),
-            &repo,
+            repo,
         )?;
-        let new_state =
-            self.construct_state_for_commit(&repo, commit, &env, &database, recording)?;
+        let new_state = self.construct_state_for_commit(repo, commit, env, &database, recording)?;
         if last_state.diff(&new_state).is_empty() {
             Ok(Some(new_state))
         } else {
@@ -303,8 +302,7 @@ impl Workspace {
                     .iter()
                     .any(|p| p.matches_path_with(path, Self::match_options()))
             {
-                let (from_commit, message) =
-                    repo.find_last_changed_commit(&path, commit.clone())?;
+                let (from_commit, message) = repo.find_last_changed_commit(path, commit.clone())?;
                 let state = if recording {
                     if let Some(on_disk_hash) = hash_file(path) {
                         FileState {

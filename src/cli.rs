@@ -91,8 +91,8 @@ pub fn run() -> Result<()> {
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
             ("check", Some(_)) => concourse_check(),
-            ("ci_in", Some(matches)) => concourse_in(&matches),
-            ("ci_out", Some(matches)) => concourse_out(&matches),
+            ("ci_in", Some(matches)) => concourse_in(matches),
+            ("ci_out", Some(matches)) => concourse_out(matches),
             _ => unreachable!(),
         },
         _ => unreachable!(),
