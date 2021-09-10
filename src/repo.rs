@@ -186,7 +186,7 @@ impl Repo {
     fn head_files<'a>(
         &self,
         filters: &'a [String],
-        ignore_files: &'a Vec<Pattern>,
+        ignore_files: &'a [Pattern],
     ) -> impl Iterator<Item = PathBuf> + 'a {
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
@@ -265,14 +265,14 @@ impl Repo {
     pub fn checkout_head(
         &self,
         filters: Option<&[String]>,
-        ignore_files: &Vec<Pattern>,
+        ignore_files: &[Pattern],
     ) -> Result<()> {
         self.inner
             .reset(self.head_commit().as_object(), ResetType::Hard, None)?;
         if let Some(filters) = filters {
             let mut checkout = CheckoutBuilder::new();
             checkout.force();
-            for path in self.head_files(filters, &ignore_files) {
+            for path in self.head_files(filters, ignore_files) {
                 checkout.path(path);
             }
 
