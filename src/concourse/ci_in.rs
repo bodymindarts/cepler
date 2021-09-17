@@ -58,8 +58,10 @@ pub fn exec(destination: &str) -> Result<()> {
     eprintln!("Preparing the workspace");
     ws.prepare(env, true)?;
 
-    std::fs::write(".git/cepler_environment", &environment)?;
-    std::fs::write(".git/cepler_trigger", &head)?;
+    std::fs::write(".git/cepler_environment", &environment)
+        .context("Couldn't create file '.git/cepler_environment'")?;
+    std::fs::write(".git/cepler_trigger", &head)
+        .context("Couldn't create file '.git/cepler_trigger'")?;
 
     println!(
         "{}",
