@@ -50,7 +50,7 @@ pub fn exec(destination: &str) -> Result<()> {
         &environment,
         &repo,
     )?;
-    let (trigger, diff) = match ws.check(env, gate)? {
+    let (trigger, diff) = match ws.check(env, gate.clone())? {
         Some((trigger, diff)) if &trigger != wanted_trigger => {
             eprintln!("Repo is out of date.");
             (trigger, diff)
@@ -62,7 +62,7 @@ pub fn exec(destination: &str) -> Result<()> {
         Some(ret) => ret,
     };
     eprintln!("Preparing the workspace");
-    ws.prepare(env, true)?;
+    ws.prepare(env, gate, true)?;
 
     std::fs::write(".git/cepler_environment", &environment)
         .context("Couldn't create file '.git/cepler_environment'")?;

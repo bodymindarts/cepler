@@ -98,7 +98,7 @@ pub fn run() -> Result<()> {
         ("prepare", Some(sub_matches)) => prepare(
             sub_matches,
             conf_from_matches(&matches)?,
-            // gates_from_matches(&matches)?,
+            gates_from_matches(&matches)?,
         ),
         ("reproduce", Some(sub_matches)) => reproduce(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
@@ -155,20 +155,25 @@ fn ls(matches: &ArgMatches, (config, config_path): (Config, String)) -> Result<(
 fn prepare(
     matches: &ArgMatches,
     config: (Config, String),
-    // gates: Option<GatesConfig>,
+    gates: Option<GatesConfig>,
 ) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let force_clean: bool = matches.is_present("FORCE_CLEAN");
     if force_clean {
         println!("WARNING removing all non-cepler specified files");
     }
+    let gate = if let Some(gates) = gates {
+        gates.get_gate(env)?
+    } else {
+        None
+    };
     let env = config
         .0
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
     let ws = Workspace::new(config.1)?;
-    ws.prepare(env, force_clean)?;
+    ws.prepare(env, gate, force_clean)?;
     Ok(())
 }
 fn reproduce(matches: &ArgMatches, config: (Config, String)) -> Result<()> {

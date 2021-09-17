@@ -44,3 +44,11 @@ teardown_file() {
 
   cmd check -e gated | grep "${head}"
 }
+
+@test "Only prepares up to gate" {
+  cmd -g `fixture`/cepler-gates.yml prepare -e gated
+  grep gated `fixture`/gated.yml
+
+  cmd prepare -e gated
+  grep new `fixture`/gated.yml
+}

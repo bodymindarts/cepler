@@ -87,8 +87,13 @@ impl Workspace {
             Err(anyhow!("No state recorded for {}", env.name))
         }
     }
-    pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
-        let repo = Repo::open(None)?;
+    pub fn prepare(
+        &self,
+        env: &EnvironmentConfig,
+        gate: Option<String>,
+        force_clean: bool,
+    ) -> Result<()> {
+        let repo = Repo::open(gate)?;
         let head_files = if force_clean {
             Some(env.head_filters())
         } else {
