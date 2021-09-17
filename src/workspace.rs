@@ -6,6 +6,7 @@ pub struct Workspace {
     path_to_config: String,
     db: Database,
 }
+
 impl Workspace {
     pub fn new(path_to_config: String) -> Result<Self> {
         Ok(Self {

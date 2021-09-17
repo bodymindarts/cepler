@@ -88,8 +88,8 @@ pub fn run() -> Result<()> {
         }
     }
     match matches.subcommand() {
-        ("check", Some(sub_matches)) => check(sub_matches, &matches),
-        ("ls", Some(sub_matches)) => ls(sub_matches, &matches),
+        ("check", Some(sub_matches)) => check(sub_matches, conf_from_matches(&matches)?),
+        ("ls", Some(sub_matches)) => ls(sub_matches, conf_from_matches(&matches)?),
         ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
         ("reproduce", Some(sub_matches)) => reproduce(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
@@ -103,12 +103,10 @@ pub fn run() -> Result<()> {
     }
 }
 
-fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
+fn check(matches: &ArgMatches, (config, config_path): (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
-    let config = conf_from_matches(main_matches)?;
-    let ws = Workspace::new(config.1)?;
+    let ws = Workspace::new(config_path)?;
     let env = config
-        .0
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
@@ -124,12 +122,10 @@ fn check(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn ls(matches: &ArgMatches, main_matches: &ArgMatches) -> Result<()> {
+fn ls(matches: &ArgMatches, (config, config_path): (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
-    let config = conf_from_matches(main_matches)?;
-    let ws = Workspace::new(config.1)?;
+    let ws = Workspace::new(config_path)?;
     let env = config
-        .0
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
