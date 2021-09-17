@@ -37,6 +37,38 @@ impl Config {
     }
 }
 
+#[derive(Debug)]
+pub struct GatesConfig {
+    gates: HashMap<String, String>,
+}
+
+impl GatesConfig {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = File::open(path).context("Couldn't open gates file")?;
+        let reader = BufReader::new(file);
+
+        Self::from_reader(reader)
+    }
+
+    pub fn from_reader(reader: impl Read) -> Result<Self> {
+        let gates: HashMap<String, String> = serde_yaml::from_reader(reader)?;
+
+        Ok(GatesConfig { gates })
+    }
+
+    pub fn get_gate(mut self, env: &str) -> Result<Option<String>> {
+        let gate = self
+            .gates
+            .remove(env)
+            .context("Environment is missing in gates file")?;
+        if gate == "HEAD" {
+            Ok(None)
+        } else {
+            Ok(Some(gate))
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct EnvironmentConfig {
     #[serde(default)]

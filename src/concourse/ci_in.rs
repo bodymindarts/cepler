@@ -1,8 +1,7 @@
 use super::*;
-use crate::{config::Config, repo::*, workspace::Workspace};
-use anyhow::*;
+use crate::workspace::Workspace;
 use glob::*;
-use std::{io, path};
+use std::{io, path::Path};
 
 pub fn exec(destination: &str) -> Result<()> {
     eprintln!("Preparing resource - cepler v{}", clap::crate_version!());
@@ -14,12 +13,12 @@ pub fn exec(destination: &str) -> Result<()> {
     let conf = GitConfig {
         url: source.uri,
         branch: source.branch.clone(),
-        gate_branch: source.gate_branch.clone(),
+        gates_branch: source.gates_branch.clone(),
         private_key: source.private_key,
         dir: destination.to_string(),
     };
 
-    let path = path::Path::new(&destination);
+    let path = Path::new(&destination);
     let repo = Repo::clone(conf).context("Couldn't clone repo")?;
     std::env::set_current_dir(path)?;
     eprintln!(
@@ -45,7 +44,13 @@ pub fn exec(destination: &str) -> Result<()> {
         version.trigger
     );
     let wanted_trigger = &version.trigger;
-    let (trigger, diff) = match ws.check(env)? {
+    let gate = get_gate(
+        source.gates_file.as_ref(),
+        source.gates_branch.as_ref(),
+        &environment,
+        &repo,
+    )?;
+    let (trigger, diff) = match ws.check(env, gate)? {
         Some((trigger, diff)) if &trigger != wanted_trigger => {
             eprintln!("Repo is out of date.");
             (trigger, diff)

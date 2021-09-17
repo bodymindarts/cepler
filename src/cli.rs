@@ -1,11 +1,12 @@
 use super::{
     concourse::{self},
-    config::Config,
+    config::*,
     repo::*,
     workspace::Workspace,
 };
 use anyhow::*;
 use clap::{clap_app, crate_version, App, ArgMatches};
+use std::path::Path;
 
 fn app() -> App<'static, 'static> {
     let app = clap_app!(cepler =>
@@ -13,8 +14,8 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
-        (@arg GATE_FILE: -g --("gate") env("CEPLER_GATE") default_value("cepler-gate.yml") "Cepler gate file")
-        (@arg GATE_BRANCH: --("gate-branch") +takes_value env("GATE_BRANCH") "Branch to find the gate file")
+        (@arg GATES_FILE: -g --("gates") +takes_value env("CEPLER_GATES") "Cepler gate file")
+        (@arg GATES_BRANCH: --("gates-branch") +takes_value requires_all(&["GATES_FILE"]) env("GATES_BRANCH") "Branch to find the gate file")
         (@arg CLONE_DIR: --("clone") +takes_value requires_all(&["GIT_URL", "GIT_PRIVATE_KEY"]) "Clone the repository into <dir>. Pulls latest changes if already present.")
         (@arg GIT_URL: --("git-url") +takes_value env("GIT_URL") "Remote url for --clone option")
         (@arg GIT_PRIVATE_KEY: --("git-private-key") +takes_value env("GIT_PRIVATE_KEY") "Private key for --clone option")
@@ -69,12 +70,11 @@ fn app() -> App<'static, 'static> {
 
 pub fn run() -> Result<()> {
     let matches = app().get_matches();
-    let gate_branch = matches.value_of("GATE_BRANCH").map(|b| b.to_string());
     if let Some(dir) = matches.value_of("CLONE_DIR") {
         let conf = GitConfig {
             url: matches.value_of("GIT_URL").unwrap().to_string(),
             branch: matches.value_of("GIT_BRANCH").unwrap().to_string(),
-            gate_branch,
+            gates_branch: matches.value_of("GATES_BRANCH").map(|b| b.to_string()),
             private_key: matches.value_of("GIT_PRIVATE_KEY").unwrap().to_string(),
             dir: dir.to_string(),
         };
@@ -84,13 +84,22 @@ pub fn run() -> Result<()> {
             std::env::set_current_dir(dir)?;
         } else {
             std::env::set_current_dir(dir)?;
-            Repo::open()?.pull(conf)?;
+            Repo::open(None)?.pull(conf)?;
         }
     }
+
     match matches.subcommand() {
-        ("check", Some(sub_matches)) => check(sub_matches, conf_from_matches(&matches)?),
         ("ls", Some(sub_matches)) => ls(sub_matches, conf_from_matches(&matches)?),
-        ("prepare", Some(sub_matches)) => prepare(sub_matches, conf_from_matches(&matches)?),
+        ("check", Some(sub_matches)) => check(
+            sub_matches,
+            conf_from_matches(&matches)?,
+            gates_from_matches(&matches)?,
+        ),
+        ("prepare", Some(sub_matches)) => prepare(
+            sub_matches,
+            conf_from_matches(&matches)?,
+            // gates_from_matches(&matches)?,
+        ),
         ("reproduce", Some(sub_matches)) => reproduce(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
@@ -103,14 +112,23 @@ pub fn run() -> Result<()> {
     }
 }
 
-fn check(matches: &ArgMatches, (config, config_path): (Config, String)) -> Result<()> {
+fn check(
+    matches: &ArgMatches,
+    (config, config_path): (Config, String),
+    gates: Option<GatesConfig>,
+) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
+    let gate = if let Some(gates) = gates {
+        gates.get_gate(env)?
+    } else {
+        None
+    };
     let ws = Workspace::new(config_path)?;
     let env = config
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
-    match ws.check(env)? {
+    match ws.check(env, gate)? {
         None => {
             println!("Nothing new to deploy");
             std::process::exit(2);
@@ -134,7 +152,11 @@ fn ls(matches: &ArgMatches, (config, config_path): (Config, String)) -> Result<(
     }
     Ok(())
 }
-fn prepare(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
+fn prepare(
+    matches: &ArgMatches,
+    config: (Config, String),
+    // gates: Option<GatesConfig>,
+) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let force_clean: bool = matches.is_present("FORCE_CLEAN");
     if force_clean {
@@ -174,7 +196,7 @@ fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
         Some(GitConfig {
             url: matches.value_of("GIT_URL").unwrap().to_string(),
             branch: matches.value_of("GIT_BRANCH").unwrap().to_string(),
-            gate_branch: None,
+            gates_branch: None,
             private_key: matches.value_of("GIT_PRIVATE_KEY").unwrap().to_string(),
             dir: String::new(),
         })
@@ -208,4 +230,23 @@ fn concourse_out(matches: &ArgMatches) -> Result<()> {
 fn conf_from_matches(matches: &ArgMatches) -> Result<(Config, String)> {
     let file_name = matches.value_of("CONFIG_FILE").unwrap();
     Ok((Config::from_file(file_name)?, file_name.to_string()))
+}
+
+fn gates_from_matches(matches: &ArgMatches) -> Result<Option<GatesConfig>> {
+    let file_name = matches.value_of("GATES_FILE");
+    if let Some(branch) = matches.value_of("GATES_BRANCH") {
+        match Repo::open(None)?.get_file_from_branch(
+            branch,
+            Path::new(file_name.unwrap()),
+            |bytes| GatesConfig::from_reader(bytes),
+        ) {
+            Ok(Some(config)) => Ok(Some(config)),
+            Ok(_) => Err(anyhow!("Couldn't find gates file in branch")),
+            err => err,
+        }
+    } else if let Some(f) = file_name {
+        Ok(Some(GatesConfig::from_file(f)?))
+    } else {
+        Ok(None)
+    }
 }

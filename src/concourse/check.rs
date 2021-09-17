@@ -1,6 +1,5 @@
 use super::*;
-use crate::{config::Config, repo::*, workspace::Workspace};
-use anyhow::*;
+use crate::{config::Config, workspace::Workspace};
 use std::{
     env,
     fs::File,
@@ -40,7 +39,7 @@ pub fn exec() -> Result<()> {
     let conf = GitConfig {
         url: source.uri,
         branch: source.branch.clone(),
-        gate_branch: source.gate_branch.clone(),
+        gates_branch: source.gates_branch.clone(),
         private_key: source.private_key,
         dir: clone_dir.clone(),
     };
@@ -53,7 +52,7 @@ pub fn exec() -> Result<()> {
     } else {
         eprintln!("Pulling latest state");
         std::env::set_current_dir(path)?;
-        let repo = Repo::open()?;
+        let repo = Repo::open(None)?;
         repo.pull(conf)?;
         repo
     };
@@ -74,7 +73,13 @@ pub fn exec() -> Result<()> {
         .context(format!("Environment '{}' not found in config", environment))?;
     eprintln!("Checking equivalence with last deployed state...");
     let mut res = Vec::new();
-    match (version, ws.check(env)?) {
+    let gate = get_gate(
+        source.gates_file.as_ref(),
+        source.gates_branch.as_ref(),
+        &environment,
+        &repo,
+    )?;
+    match (version, ws.check(env, gate)?) {
         (None, Some((trigger, _))) => {
             eprintln!("Found new state to deploy");
             res.push(Version { trigger })

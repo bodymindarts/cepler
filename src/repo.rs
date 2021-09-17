@@ -1,6 +1,6 @@
 use anyhow::*;
 use git2::{
-    build::CheckoutBuilder, Commit, Cred, MergeOptions, ObjectType, Oid, PushOptions,
+    build::CheckoutBuilder, BranchType, Commit, Cred, MergeOptions, ObjectType, Oid, PushOptions,
     RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode, TreeWalkResult,
 };
 use glob::*;
@@ -44,12 +44,13 @@ pub fn hash_file<P: AsRef<Path>>(file: P) -> Option<FileHash> {
 pub struct GitConfig {
     pub url: String,
     pub branch: String,
-    pub gate_branch: Option<String>,
+    pub gates_branch: Option<String>,
     pub private_key: String,
     pub dir: String,
 }
 pub struct Repo {
     inner: Repository,
+    gate: Option<Oid>,
 }
 
 impl Repo {
@@ -70,14 +71,14 @@ impl Repo {
         builder.fetch_options(fo);
         builder.branch(&branch);
         let inner = builder.clone(&url, Path::new(&dir))?;
-        Ok(Self { inner })
+        Ok(Self { inner, gate: None })
     }
 
     pub fn pull(
         &self,
         GitConfig {
             branch,
-            gate_branch,
+            gates_branch,
             private_key,
             ..
         }: GitConfig,
@@ -87,8 +88,8 @@ impl Repo {
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
         let mut branches = vec![branch.clone()];
-        if let Some(gate) = gate_branch {
-            branches.push(gate);
+        if let Some(gates) = gates_branch {
+            branches.push(gates);
         }
         remote.fetch(&branches, Some(&mut fo), None)?;
         let suffix = format!("/{}", branch);
@@ -160,10 +161,18 @@ impl Repo {
         Ok(())
     }
 
-    pub fn open() -> Result<Self> {
-        Ok(Self {
-            inner: Repository::open_from_env()?,
-        })
+    pub fn open(gate: Option<String>) -> Result<Self> {
+        let inner = Repository::open_from_env()?;
+        let gate = if let Some(gate) = gate {
+            let commit = Oid::from_str(&gate).context("Gate is not a valid commit hash")?;
+            inner
+                .find_commit(commit)
+                .context("Gate commit doesn't exist")?;
+            Some(commit)
+        } else {
+            None
+        };
+        Ok(Self { inner, gate })
     }
 
     pub fn commit_state_file(&self, file_name: String) -> Result<()> {
@@ -197,7 +206,7 @@ impl Repo {
     ) -> impl Iterator<Item = PathBuf> + 'a {
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
-        let repo = Self::open().expect("Couldn't re-open repo");
+        let repo = Self::open(None).expect("Couldn't re-open repo");
         let filter = move |file: &PathBuf| {
             repo.is_trackable_file(file)
                 && !ignore_files.iter().any(|p| {
@@ -386,6 +395,13 @@ impl Repo {
     {
         let commit = Oid::from_str(&commit.0).expect("Couldn't parse commit hash");
         let commit = self.inner.find_commit(commit)?;
+        self.get_file_from_commit(commit, file, f)
+    }
+
+    fn get_file_from_commit<F, T>(&self, commit: Commit, file: &Path, f: F) -> Result<Option<T>>
+    where
+        F: Fn(&[u8]) -> Result<T>,
+    {
         let tree = commit.tree().context("Couldn't resolve tree")?;
         let target = if let Ok(target) = tree.get_path(file) {
             target
@@ -400,11 +416,30 @@ impl Repo {
     }
 
     fn head_commit(&self) -> Commit<'_> {
-        self.inner.head().unwrap().peel_to_commit().unwrap()
+        if let Some(gate) = self.gate {
+            self.inner.find_commit(gate).unwrap()
+        } else {
+            self.inner.head().unwrap().peel_to_commit().unwrap()
+        }
     }
 
     fn head_oid(&self) -> Oid {
-        self.inner.head().unwrap().peel_to_commit().unwrap().id()
+        self.head_commit().id()
+    }
+
+    pub fn get_file_from_branch<F, T>(&self, name: &str, file: &Path, f: F) -> Result<Option<T>>
+    where
+        F: Fn(&[u8]) -> Result<T>,
+    {
+        let branch = if let Ok(branch) = self.inner.find_branch(name, BranchType::Local) {
+            branch
+        } else {
+            self.inner
+                .find_branch(&format!("origin/{}", name), BranchType::Remote)
+                .context("Couldn't find branch")?
+        };
+
+        self.get_file_from_commit(branch.into_reference().peel_to_commit()?, file, f)
     }
 }
 

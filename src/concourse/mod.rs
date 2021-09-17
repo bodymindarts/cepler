@@ -1,4 +1,7 @@
+use crate::{config::*, repo::*};
+use anyhow::*;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 pub mod check;
 pub mod ci_in;
@@ -15,7 +18,8 @@ struct ResourceConfig {
 struct Source {
     uri: String,
     branch: String,
-    gate_branch: Option<String>,
+    gates_branch: Option<String>,
+    gates_file: Option<String>,
     private_key: String,
     environment: Option<String>,
     #[serde(default = "default_config_path")]
@@ -46,4 +50,36 @@ struct ResourceData {
 
 fn default_config_path() -> String {
     "cepler.yml".to_string()
+}
+
+fn get_gate(
+    gates_file: Option<&String>,
+    gates_branch: Option<&String>,
+    env: &str,
+    repo: &Repo,
+) -> Result<Option<String>> {
+    let gates = match (gates_file, gates_branch) {
+        (Some(gates_file), Some(gates_branch)) => {
+            if let Some(file) =
+                repo.get_file_from_branch(&gates_branch, Path::new(&gates_file), |bytes| {
+                    GatesConfig::from_reader(bytes)
+                })?
+            {
+                Ok(Some(file))
+            } else {
+                Err(anyhow!("Couldn't read gates file"))
+            }
+        }
+        (Some(gates_file), _) => Ok(Some(GatesConfig::from_file(gates_file)?)),
+
+        (_, Some(_)) => Err(anyhow!("Missing gates_file in source")),
+        _ => Ok(None),
+    }?;
+
+    let gate = if let Some(gates) = gates {
+        gates.get_gate(env)?
+    } else {
+        None
+    };
+    Ok(gate)
 }

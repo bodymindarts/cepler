@@ -1,6 +1,5 @@
 use super::*;
-use crate::{config::Config, repo::*, workspace::Workspace};
-use anyhow::*;
+use crate::{config::Config, workspace::Workspace};
 use std::{io, path};
 
 pub fn exec(origin: &str) -> Result<()> {
@@ -16,7 +15,7 @@ pub fn exec(origin: &str) -> Result<()> {
     let conf = GitConfig {
         url: source.uri,
         branch: source.branch.clone(),
-        gate_branch: source.gate_branch.clone(),
+        gates_branch: source.gates_branch.clone(),
         private_key: source.private_key,
         dir: origin.to_string(),
     };

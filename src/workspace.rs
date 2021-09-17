@@ -16,7 +16,7 @@ impl Workspace {
     }
 
     pub fn ls(&self, env: &EnvironmentConfig) -> Result<Vec<String>> {
-        let repo = Repo::open()?;
+        let repo = Repo::open(None)?;
         let new_env_state = self.construct_env_state(&repo, env, false)?;
         Ok(new_env_state
             .files
@@ -25,8 +25,12 @@ impl Workspace {
             .collect())
     }
 
-    pub fn check(&self, env: &EnvironmentConfig) -> Result<Option<(String, Vec<FileDiff>)>> {
-        let repo = Repo::open()?;
+    pub fn check(
+        &self,
+        env: &EnvironmentConfig,
+        gate: Option<String>,
+    ) -> Result<Option<(String, Vec<FileDiff>)>> {
+        let repo = Repo::open(gate)?;
         if let Some(previous_env) = env.propagated_from() {
             self.db.get_current_state(previous_env).context(format!(
                 "Previous environment '{}' not deployed yet",
@@ -65,7 +69,7 @@ impl Workspace {
     }
 
     pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
-        let repo = Repo::open()?;
+        let repo = Repo::open(None)?;
         if let Some(last_state) = self.db.get_current_state(&env.name) {
             if force_clean {
                 let file_names: Vec<String> = last_state
@@ -84,7 +88,7 @@ impl Workspace {
         }
     }
     pub fn prepare(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
-        let repo = Repo::open()?;
+        let repo = Repo::open(None)?;
         let head_files = if force_clean {
             Some(env.head_filters())
         } else {
@@ -137,7 +141,7 @@ impl Workspace {
         git_config: Option<GitConfig>,
     ) -> Result<(String, Vec<FileDiff>)> {
         eprintln!("Recording current state");
-        let repo = Repo::open()?;
+        let repo = Repo::open(None)?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
         let head_commit = new_env_state.head_commit.to_short_ref();
         let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
