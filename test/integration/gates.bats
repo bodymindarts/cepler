@@ -30,7 +30,7 @@ teardown_file() {
 }
 
 @test "Only searches till gate" {
-  last_changed="22d647f"
+  last_changed="aef8e29"
 
   cmd -g `fixture`/cepler-gates.yml check -e gated | grep "${last_changed}"
   cmd -g `fixture`/cepler-gates.yml record -e gated
