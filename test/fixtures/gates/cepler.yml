@@ -1,0 +1,10 @@
+environments:
+  head:
+    latest:
+    - test/fixtures/gates/latest.yml
+  gated:
+    latest:
+    - test/fixtures/gates/gated.yml
+  missing:
+    latest:
+    - test/fixtures/gates/missing.yml
