@@ -21,8 +21,8 @@ pub fn exec() -> Result<()> {
     }: ResourceConfig = resource.clone();
     if let Some(ref version) = version {
         eprintln!(
-            "Last deployed head: '{}', checking if we can deploy a newer version",
-            version.head
+            "Last deployed trigger: '{}', checking if we can deploy a newer version",
+            version.trigger
         );
     } else {
         eprintln!("No previous deployments - checking if there is one");
@@ -57,7 +57,7 @@ pub fn exec() -> Result<()> {
         repo
     };
     eprintln!(
-        "HEAD of branch '{}' is now at: '{}'",
+        "head of branch '{}' is now at: '{}'",
         source.branch,
         repo.head_commit_hash()?
     );
@@ -74,14 +74,14 @@ pub fn exec() -> Result<()> {
     eprintln!("Checking equivalence with last deployed state...");
     let mut res = Vec::new();
     match (version, ws.check(env)?) {
-        (None, Some((head, _))) => {
+        (None, Some((trigger, _))) => {
             eprintln!("Found new state to deploy");
-            res.push(Version { head })
+            res.push(Version { trigger })
         }
-        (Some(last), Some((head, _))) if last.head != head => {
+        (Some(last), Some((trigger, _))) if last.trigger != trigger => {
             eprintln!("Found new state to deploy");
             res.push(last);
-            res.push(Version { head })
+            res.push(Version { trigger })
         }
         (Some(last), _) => {
             eprintln!("Nothing new to deploy");

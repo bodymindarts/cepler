@@ -22,7 +22,7 @@ struct Source {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Version {
-    head: String,
+    trigger: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -22,7 +22,7 @@ pub fn exec(destination: &str) -> Result<()> {
     let repo = Repo::clone(conf).context("Couldn't clone repo")?;
     std::env::set_current_dir(path)?;
     eprintln!(
-        "HEAD of branch '{}' is now at: '{}'",
+        "head of branch '{}' is now at: '{}'",
         source.branch,
         repo.head_commit_hash()?
     );
@@ -40,14 +40,14 @@ pub fn exec(destination: &str) -> Result<()> {
         .get(&environment)
         .context(format!("Environment '{}' not found in config", environment))?;
     eprintln!(
-        "Checking if we can prepare deployment at head '{}'",
-        version.head
+        "Checking if we can prepare deployment at trigger '{}'",
+        version.trigger
     );
-    let wanted_head = &version.head;
-    let (head, diff) = match ws.check(env)? {
-        Some((head, diff)) if &head != wanted_head => {
+    let wanted_trigger = &version.trigger;
+    let (trigger, diff) = match ws.check(env)? {
+        Some((trigger, diff)) if &trigger != wanted_trigger => {
             eprintln!("Repo is out of date.");
-            (head, diff)
+            (trigger, diff)
         }
         None => {
             eprintln!("Nothing new to deploy... providing an empty dir");
@@ -60,7 +60,7 @@ pub fn exec(destination: &str) -> Result<()> {
 
     std::fs::write(".git/cepler_environment", &environment)
         .context("Couldn't create file '.git/cepler_environment'")?;
-    std::fs::write(".git/cepler_trigger", &head)
+    std::fs::write(".git/cepler_trigger", &trigger)
         .context("Couldn't create file '.git/cepler_trigger'")?;
 
     println!(

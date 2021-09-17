@@ -30,11 +30,11 @@ pub fn exec(origin: &str) -> Result<()> {
         .environments
         .get(&environment)
         .context(format!("Environment '{}' not found in config", environment))?;
-    let (head, diff) = ws.record_env(env, true, true, Some(conf))?;
+    let (trigger, diff) = ws.record_env(env, true, true, Some(conf))?;
     println!(
         "{}",
         serde_json::to_string(&ResourceData {
-            version: Version { head },
+            version: Version { trigger },
             metadata: diff
                 .into_iter()
                 .map(|diff| DiffElem {
