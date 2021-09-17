@@ -44,19 +44,22 @@ pub fn exec(destination: &str) -> Result<()> {
         version.head
     );
     let wanted_head = &version.head;
-    let diff = match ws.check(env)? {
+    let (head, diff) = match ws.check(env)? {
         Some((head, diff)) if &head != wanted_head => {
             eprintln!("Repo is out of date.");
-            diff
+            (head, diff)
         }
         None => {
             eprintln!("Nothing new to deploy... providing an empty dir");
             return empty_repo(version);
         }
-        Some((_, diff)) => diff,
+        Some(ret) => ret,
     };
     eprintln!("Preparing the workspace");
     ws.prepare(env, true)?;
+
+    std::fs::write(".git/cepler_environment", &environment)?;
+    std::fs::write(".git/cepler_trigger", &head)?;
 
     println!(
         "{}",
