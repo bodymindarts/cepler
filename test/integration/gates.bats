@@ -46,9 +46,9 @@ teardown_file() {
 }
 
 @test "Only prepares up to gate" {
-  cmd -g `fixture`/cepler-gates.yml prepare -e gated
-  grep gated `fixture`/gated.yml
-
   cmd prepare -e gated
   grep new `fixture`/gated.yml
+
+  cmd -g `fixture`/cepler-gates.yml prepare -e gated
+  grep gated `fixture`/gated.yml
 }
