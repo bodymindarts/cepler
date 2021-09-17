@@ -15,6 +15,7 @@ struct ResourceConfig {
 struct Source {
     uri: String,
     branch: String,
+    gate_branch: Option<String>,
     private_key: String,
     environment: Option<String>,
     #[serde(default = "default_config_path")]

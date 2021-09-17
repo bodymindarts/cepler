@@ -6,8 +6,10 @@ test:
 integration: build
 	bats -t -r test/integration
 
-test-in-ci:
+clippy:
 	cargo clippy --all-features
+
+test-in-ci: clippy
 	cargo test --all-features --verbose --locked
 
 build-x86_64-unknown-linux-musl-release:

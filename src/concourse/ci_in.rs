@@ -14,6 +14,7 @@ pub fn exec(destination: &str) -> Result<()> {
     let conf = GitConfig {
         url: source.uri,
         branch: source.branch.clone(),
+        gate_branch: source.gate_branch.clone(),
         private_key: source.private_key,
         dir: destination.to_string(),
     };

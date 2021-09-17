@@ -44,6 +44,7 @@ pub fn hash_file<P: AsRef<Path>>(file: P) -> Option<FileHash> {
 pub struct GitConfig {
     pub url: String,
     pub branch: String,
+    pub gate_branch: Option<String>,
     pub private_key: String,
     pub dir: String,
 }
@@ -58,6 +59,7 @@ impl Repo {
             branch,
             private_key,
             dir,
+            ..
         }: GitConfig,
     ) -> Result<Self> {
         let callbacks = remote_callbacks(private_key);
@@ -75,6 +77,7 @@ impl Repo {
         &self,
         GitConfig {
             branch,
+            gate_branch,
             private_key,
             ..
         }: GitConfig,
@@ -83,7 +86,11 @@ impl Repo {
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
-        remote.fetch(&[branch.clone()], Some(&mut fo), None)?;
+        let mut branches = vec![branch.clone()];
+        if let Some(gate) = gate_branch {
+            branches.push(gate);
+        }
+        remote.fetch(&branches, Some(&mut fo), None)?;
         let suffix = format!("/{}", branch);
         let remote_head = remote
             .list()?

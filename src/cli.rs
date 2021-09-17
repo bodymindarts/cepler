@@ -13,6 +13,8 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
+        (@arg GATE_FILE: -g --("gate") env("CEPLER_GATE") default_value("cepler-gate.yml") "Cepler gate file")
+        (@arg GATE_BRANCH: --("gate-branch") +takes_value env("GATE_BRANCH") "Branch to find the gate file")
         (@arg CLONE_DIR: --("clone") +takes_value requires_all(&["GIT_URL", "GIT_PRIVATE_KEY"]) "Clone the repository into <dir>. Pulls latest changes if already present.")
         (@arg GIT_URL: --("git-url") +takes_value env("GIT_URL") "Remote url for --clone option")
         (@arg GIT_PRIVATE_KEY: --("git-private-key") +takes_value env("GIT_PRIVATE_KEY") "Private key for --clone option")
@@ -67,10 +69,12 @@ fn app() -> App<'static, 'static> {
 
 pub fn run() -> Result<()> {
     let matches = app().get_matches();
+    let gate_branch = matches.value_of("GATE_BRANCH").map(|b| b.to_string());
     if let Some(dir) = matches.value_of("CLONE_DIR") {
         let conf = GitConfig {
             url: matches.value_of("GIT_URL").unwrap().to_string(),
             branch: matches.value_of("GIT_BRANCH").unwrap().to_string(),
+            gate_branch,
             private_key: matches.value_of("GIT_PRIVATE_KEY").unwrap().to_string(),
             dir: dir.to_string(),
         };
@@ -174,6 +178,7 @@ fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
         Some(GitConfig {
             url: matches.value_of("GIT_URL").unwrap().to_string(),
             branch: matches.value_of("GIT_BRANCH").unwrap().to_string(),
+            gate_branch: None,
             private_key: matches.value_of("GIT_PRIVATE_KEY").unwrap().to_string(),
             dir: String::new(),
         })
