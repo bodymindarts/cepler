@@ -61,7 +61,7 @@ fn get_gate(
     let gates = match (gates_file, gates_branch) {
         (Some(gates_file), Some(gates_branch)) => {
             if let Some(file) =
-                repo.get_file_from_branch(&gates_branch, Path::new(&gates_file), |bytes| {
+                repo.get_file_from_branch(gates_branch, Path::new(&gates_file), |bytes| {
                     GatesConfig::from_reader(bytes)
                 })?
             {

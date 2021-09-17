@@ -232,6 +232,7 @@ fn conf_from_matches(matches: &ArgMatches) -> Result<(Config, String)> {
     Ok((Config::from_file(file_name)?, file_name.to_string()))
 }
 
+#[allow(clippy::redundant_closure)]
 fn gates_from_matches(matches: &ArgMatches) -> Result<Option<GatesConfig>> {
     let file_name = matches.value_of("GATES_FILE");
     if let Some(branch) = matches.value_of("GATES_BRANCH") {
