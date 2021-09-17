@@ -11,7 +11,6 @@ use std::{
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub environments: HashMap<String, EnvironmentConfig>,
-    pub concourse: Option<ConcourseConfig>,
 }
 
 impl Config {
@@ -83,18 +82,6 @@ impl EnvironmentConfig {
     pub fn head_filters(&self) -> &[String] {
         &self.head_files
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ConcourseConfig {
-    pub repo: RepoConfig,
-    pub task: TaskConfig,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TaskConfig {
-    pub image_resource: serde_yaml::Value,
-    pub run: serde_yaml::Value,
 }
 
 #[derive(Debug, Deserialize)]
