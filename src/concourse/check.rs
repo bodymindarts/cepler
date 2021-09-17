@@ -57,7 +57,7 @@ pub fn exec() -> Result<()> {
         repo
     };
     eprintln!(
-        "head of branch '{}' is now at: '{}'",
+        "HEAD of branch '{}' is now at: '{}'",
         source.branch,
         repo.head_commit_hash()?
     );

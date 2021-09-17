@@ -22,7 +22,7 @@ pub fn exec(destination: &str) -> Result<()> {
     let repo = Repo::clone(conf).context("Couldn't clone repo")?;
     std::env::set_current_dir(path)?;
     eprintln!(
-        "head of branch '{}' is now at: '{}'",
+        "HEAD of branch '{}' is now at: '{}'",
         source.branch,
         repo.head_commit_hash()?
     );
