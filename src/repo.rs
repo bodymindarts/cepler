@@ -1,3 +1,4 @@
+use super::config::MATCH_OPTIONS;
 use anyhow::*;
 use git2::{
     build::CheckoutBuilder, BranchType, Commit, Cred, MergeOptions, Object, ObjectType, Oid,
@@ -53,6 +54,7 @@ pub struct GitConfig {
     pub private_key: String,
     pub dir: String,
 }
+
 pub struct Repo {
     inner: Repository,
     gate: Option<Oid>,
@@ -212,20 +214,15 @@ impl Repo {
         ignore_files: &'a [Pattern],
     ) -> impl Iterator<Item = PathBuf> + 'a {
         let ignore = move |file: &Path| {
-            ignore_files.iter().any(|p| {
-                p.matches_path_with(
-                    file,
-                    glob::MatchOptions {
-                        case_sensitive: true,
-                        require_literal_separator: true,
-                        require_literal_leading_dot: true,
-                    },
-                )
-            })
+            ignore_files
+                .iter()
+                .any(|p| p.matches_path_with(file, MATCH_OPTIONS))
         };
-        let mut opts = MatchOptions::new();
-        opts.require_literal_leading_dot = true;
-        let includes = move |file: &Path| globs.iter().any(|p| p.matches_path_with(file, opts));
+        let includes = move |file: &Path| {
+            globs
+                .iter()
+                .any(|p| p.matches_path_with(file, MATCH_OPTIONS))
+        };
         let mut paths = Vec::new();
         self.all_files(self.gate_commit_hash(), |_, path| {
             if !ignore(path) && includes(path) {

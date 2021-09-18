@@ -8,6 +8,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub const MATCH_OPTIONS: glob::MatchOptions = glob::MatchOptions {
+    case_sensitive: true,
+    require_literal_separator: true,
+    require_literal_leading_dot: true,
+};
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub environments: HashMap<String, EnvironmentConfig>,

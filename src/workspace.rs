@@ -93,14 +93,14 @@ impl Workspace {
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         repo.checkout_gate(&head_patterns, &ignore_list, force_clean)?;
         for file_buf in env.propagated_files() {
-            let file = file_buf.to_str().unwrap().to_string();
-            if !ignore_list
-                .iter()
-                .any(|p| p.matches_with(&file, Self::match_options()))
+            let file = file_buf.as_path();
+            if file.is_file()
+                && !ignore_list
+                    .iter()
+                    .any(|p| p.matches_path_with(&file, MATCH_OPTIONS))
                 && !head_patterns
                     .iter()
-                    .any(|p| p.matches_with(&file, Self::match_options()))
-                && Path::new(&file).is_file()
+                    .any(|p| p.matches_path_with(&file, MATCH_OPTIONS))
             {
                 std::fs::remove_file(file_buf).expect("Couldn't remove file");
             }
@@ -115,10 +115,10 @@ impl Workspace {
                     let name = ident.name();
                     if patterns
                         .iter()
-                        .any(|p| p.matches_with(&name, Self::match_options()))
+                        .any(|p| p.matches_with(&name, MATCH_OPTIONS))
                         && !head_patterns
                             .iter()
-                            .any(|p| p.matches_with(&name, Self::match_options()))
+                            .any(|p| p.matches_with(&name, MATCH_OPTIONS))
                     {
                         repo.checkout_file_from(&name, &state.from_commit)?;
                     }
@@ -265,7 +265,7 @@ impl Workspace {
                     if let Some(last_hash) = prev_state.file_hash.as_ref() {
                         if patterns
                             .iter()
-                            .any(|p| p.matches_with(&name, Self::match_options()))
+                            .any(|p| p.matches_with(&name, MATCH_OPTIONS))
                         {
                             let (dirty, file_hash) = if recording {
                                 if let Some(file_hash) = hash_file(&name) {
@@ -298,10 +298,10 @@ impl Workspace {
         repo.all_files(commit.clone(), |file_hash, path| {
             if env
                 .head_file_patterns()
-                .any(|p| p.matches_path_with(path, Self::match_options()))
+                .any(|p| p.matches_path_with(path, MATCH_OPTIONS))
                 && !ignore_list
                     .iter()
-                    .any(|p| p.matches_path_with(path, Self::match_options()))
+                    .any(|p| p.matches_path_with(path, MATCH_OPTIONS))
             {
                 let (from_commit, message) = repo.find_last_changed_commit(path, commit.clone())?;
                 let state = if recording {
@@ -345,13 +345,5 @@ impl Workspace {
             glob::Pattern::new(".git/*").unwrap(),
             glob::Pattern::new(".gitignore").unwrap(),
         ]
-    }
-
-    fn match_options() -> glob::MatchOptions {
-        glob::MatchOptions {
-            case_sensitive: true,
-            require_literal_separator: true,
-            require_literal_leading_dot: true,
-        }
     }
 }
