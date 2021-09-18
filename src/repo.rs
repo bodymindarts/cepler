@@ -204,7 +204,7 @@ impl Repo {
 
     fn gate_files_matching<'a>(
         &self,
-        filters: &'a [String],
+        globs: &'a [Pattern],
         ignore_files: &'a [Pattern],
     ) -> impl Iterator<Item = PathBuf> + 'a {
         let ignore = move |file: &Path| {
@@ -219,10 +219,6 @@ impl Repo {
                 )
             })
         };
-        let globs: Vec<_> = filters
-            .iter()
-            .map(|f| glob::Pattern::new(f).expect("Unsupported glob pattern"))
-            .collect();
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
         let includes = move |file: &Path| globs.iter().any(|p| p.matches_path_with(file, opts));
@@ -301,7 +297,7 @@ impl Repo {
 
     pub fn checkout_gate(
         &self,
-        globs: &[String],
+        globs: &[Pattern],
         ignore_files: &[Pattern],
         clean: bool,
     ) -> Result<()> {

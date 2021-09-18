@@ -90,8 +90,8 @@ impl Workspace {
     ) -> Result<()> {
         let repo = Repo::open(gate)?;
         let ignore_list = self.ignore_list();
-        repo.checkout_gate(env.head_filters(), &ignore_list, force_clean)?;
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
+        repo.checkout_gate(&head_patterns, &ignore_list, force_clean)?;
         for file_buf in env.propagated_files() {
             let file = file_buf.to_str().unwrap().to_string();
             if !ignore_list

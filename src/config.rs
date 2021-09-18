@@ -110,10 +110,6 @@ impl EnvironmentConfig {
             .into_iter()
             .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
     }
-
-    pub fn head_filters(&self) -> &[String] {
-        &self.head_files
-    }
 }
 
 #[derive(Debug, Deserialize)]
