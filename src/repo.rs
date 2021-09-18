@@ -191,7 +191,7 @@ impl Repo {
                 path.file_stem().unwrap().to_str().unwrap()
             ),
             &tree,
-            &[&self.head_commit()],
+            &[&self.gate_commit()],
         )?;
         let mut checkout = CheckoutBuilder::new();
         checkout.path(path);
@@ -260,8 +260,20 @@ impl Repo {
             .expect("Cannot check ignore status")
     }
 
+    pub fn gate_commit_hash(&self) -> Result<CommitHash> {
+        Ok(CommitHash(self.gate_oid().to_string()))
+    }
+
     pub fn head_commit_hash(&self) -> Result<CommitHash> {
-        Ok(CommitHash(self.head_oid().to_string()))
+        Ok(CommitHash(
+            self.inner
+                .head()
+                .unwrap()
+                .peel_to_commit()
+                .unwrap()
+                .id()
+                .to_string(),
+        ))
     }
 
     pub fn checkout_file_from(&self, path: &str, commit: &CommitHash) -> Result<()> {
@@ -284,7 +296,7 @@ impl Repo {
         ignore_files: &[Pattern],
     ) -> Result<()> {
         self.inner
-            .reset(self.head_commit().as_object(), ResetType::Hard, None)?;
+            .reset(self.gate_commit().as_object(), ResetType::Hard, None)?;
         if let Some(filters) = filters {
             let mut checkout = CheckoutBuilder::new();
             checkout.force();
@@ -415,7 +427,7 @@ impl Repo {
         Ok(Some(f(blob.content())?))
     }
 
-    fn head_commit(&self) -> Commit<'_> {
+    fn gate_commit(&self) -> Commit<'_> {
         if let Some(gate) = self.gate {
             self.inner.find_commit(gate).unwrap()
         } else {
@@ -423,8 +435,8 @@ impl Repo {
         }
     }
 
-    fn head_oid(&self) -> Oid {
-        self.head_commit().id()
+    fn gate_oid(&self) -> Oid {
+        self.gate_commit().id()
     }
 
     pub fn get_file_from_branch<F, T>(&self, name: &str, file: &Path, f: F) -> Result<Option<T>>

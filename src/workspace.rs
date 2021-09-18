@@ -189,7 +189,7 @@ impl Workspace {
         env: &EnvironmentConfig,
         recording: bool,
     ) -> Result<DeployState> {
-        let current_commit = repo.head_commit_hash()?;
+        let current_commit = repo.gate_commit_hash()?;
         let database = Database::open_env(
             &self.path_to_config,
             &env.name,
