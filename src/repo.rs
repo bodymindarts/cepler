@@ -325,10 +325,11 @@ impl Repo {
                         },
                     )
                 };
-                if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
-                    if clean || globs.iter().any(|p| check(p)) {
-                        std::fs::remove_file(path).expect("Couldn't remove file");
-                    }
+                if !ignore_files.iter().any(|p| check(p))
+                    && path.is_file()
+                    && (clean || globs.iter().any(|p| check(p)))
+                {
+                    std::fs::remove_file(path).expect("Couldn't remove file");
                 }
             }
         }

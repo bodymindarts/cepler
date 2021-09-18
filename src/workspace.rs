@@ -97,10 +97,10 @@ impl Workspace {
             if file.is_file()
                 && !ignore_list
                     .iter()
-                    .any(|p| p.matches_path_with(&file, MATCH_OPTIONS))
+                    .any(|p| p.matches_path_with(file, MATCH_OPTIONS))
                 && !head_patterns
                     .iter()
-                    .any(|p| p.matches_path_with(&file, MATCH_OPTIONS))
+                    .any(|p| p.matches_path_with(file, MATCH_OPTIONS))
             {
                 std::fs::remove_file(file_buf).expect("Couldn't remove file");
             }
