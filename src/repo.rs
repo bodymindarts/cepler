@@ -24,6 +24,10 @@ impl fmt::Display for CommitHash {
     }
 }
 impl CommitHash {
+    pub fn to_inner(self) -> String {
+        self.0
+    }
+
     pub fn to_short_ref(&self) -> String {
         self.0.chars().take(7).collect()
     }
