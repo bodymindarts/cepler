@@ -183,6 +183,8 @@ impl Repo {
         let oid = index.write_tree()?;
         let tree = self.inner.find_tree(oid)?;
         let sig = Signature::now("Cepler", "bot@cepler.io")?;
+
+        let head_commit = self.inner.head().unwrap().peel_to_commit().unwrap();
         self.inner.commit(
             Some("HEAD"),
             &sig,
@@ -192,7 +194,7 @@ impl Repo {
                 path.file_stem().unwrap().to_str().unwrap()
             ),
             &tree,
-            &[&self.gate_commit()],
+            &[&head_commit],
         )?;
         let mut checkout = CheckoutBuilder::new();
         checkout.path(path);
@@ -205,29 +207,34 @@ impl Repo {
         filters: &'a [String],
         ignore_files: &'a [Pattern],
     ) -> impl Iterator<Item = PathBuf> + 'a {
+        let ignore = move |file: &Path| {
+            ignore_files.iter().any(|p| {
+                p.matches_path_with(
+                    file,
+                    glob::MatchOptions {
+                        case_sensitive: true,
+                        require_literal_separator: true,
+                        require_literal_leading_dot: true,
+                    },
+                )
+            })
+        };
+        let globs: Vec<_> = filters
+            .iter()
+            .map(|f| glob::Pattern::new(f).expect("Unsupported glob pattern"))
+            .collect();
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
-        let gate = self.gate_oid().to_string();
-        let repo = Self::open(Some(gate)).expect("Couldn't re-open repo");
-        let filter = move |file: &PathBuf| {
-            repo.is_trackable_file(file)
-                && !ignore_files.iter().any(|p| {
-                    p.matches_with(
-                        file.to_str().unwrap(),
-                        glob::MatchOptions {
-                            case_sensitive: true,
-                            require_literal_separator: true,
-                            require_literal_leading_dot: true,
-                        },
-                    )
-                })
-        };
-        filters
-            .iter()
-            .map(move |files| glob_with(files, opts).expect("Couldn't resolve glob"))
-            .flatten()
-            .map(|res| res.expect("Couldn't list file"))
-            .filter(move |file| filter(file))
+        let includes = move |file: &Path| globs.iter().any(|p| p.matches_path_with(file, opts));
+        let mut paths = Vec::new();
+        self.all_files(self.gate_commit_hash(), |_, path| {
+            if !ignore(path) && includes(path) {
+                paths.push(path.to_path_buf())
+            }
+            Ok(())
+        })
+        .expect("Couldn't list gate files");
+        paths.into_iter()
     }
 
     pub fn all_files<F>(&self, commit: CommitHash, mut f: F) -> Result<()>
@@ -262,8 +269,8 @@ impl Repo {
             .expect("Cannot check ignore status")
     }
 
-    pub fn gate_commit_hash(&self) -> Result<CommitHash> {
-        Ok(CommitHash(self.gate_oid().to_string()))
+    pub fn gate_commit_hash(&self) -> CommitHash {
+        CommitHash(self.gate_oid().to_string())
     }
 
     pub fn head_commit_hash(&self) -> Result<CommitHash> {
@@ -292,40 +299,37 @@ impl Repo {
         Ok(())
     }
 
-    pub fn checkout_gate(&self) -> Result<()> {
-        let object = self
-            .inner
-            .find_object(self.gate_oid(), Some(ObjectType::Commit))?;
+    pub fn checkout_gate(
+        &self,
+        globs: &[String],
+        ignore_files: &[Pattern],
+        clean: bool,
+    ) -> Result<()> {
         let mut checkout = CheckoutBuilder::new();
         checkout.force();
         checkout.update_index(false);
-        self.inner.checkout_tree(&object, Some(&mut checkout))?;
-        Ok(())
-    }
-
-    pub fn rm_all_except(&self, globs: &[String], ignore_files: &[Pattern]) -> Result<()> {
-        let mut checkout = CheckoutBuilder::new();
-        checkout.force();
         for path in self.gate_files_matching(globs, ignore_files) {
             checkout.path(path);
         }
 
-        for path in glob("**/*").expect("List all files") {
-            let path = path.expect("Get file");
-            if self.is_trackable_file(&path) {
-                let path = path.as_path();
-                let check = |p: &glob::Pattern| {
-                    p.matches_path_with(
-                        path,
-                        glob::MatchOptions {
-                            case_sensitive: true,
-                            require_literal_separator: true,
-                            require_literal_leading_dot: true,
-                        },
-                    )
-                };
-                if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
-                    std::fs::remove_file(path).expect("Couldn't remove file");
+        if clean {
+            for path in glob("**/*").expect("List all files") {
+                let path = path.expect("Get file");
+                if self.is_trackable_file(&path) {
+                    let path = path.as_path();
+                    let check = |p: &glob::Pattern| {
+                        p.matches_path_with(
+                            path,
+                            glob::MatchOptions {
+                                case_sensitive: true,
+                                require_literal_separator: true,
+                                require_literal_leading_dot: true,
+                            },
+                        )
+                    };
+                    if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
+                        std::fs::remove_file(path).expect("Couldn't remove file");
+                    }
                 }
             }
         }

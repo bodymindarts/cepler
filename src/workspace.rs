@@ -72,8 +72,7 @@ impl Workspace {
         let repo = Repo::open(None)?;
         if let Some(last_state) = self.db.get_current_state(&env.name) {
             if force_clean {
-                repo.checkout_gate()?;
-                repo.rm_all_except(&[], &self.ignore_list())?;
+                repo.checkout_gate(&[], &self.ignore_list(), true)?;
             }
             for (ident, state) in last_state.files.iter() {
                 repo.checkout_file_from(&ident.name(), &state.from_commit)?;
@@ -90,11 +89,8 @@ impl Workspace {
         force_clean: bool,
     ) -> Result<()> {
         let repo = Repo::open(gate)?;
-        repo.checkout_gate()?;
         let ignore_list = self.ignore_list();
-        if force_clean {
-            repo.rm_all_except(env.head_filters(), &ignore_list)?;
-        };
+        repo.checkout_gate(env.head_filters(), &ignore_list, force_clean)?;
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         for file_buf in env.propagated_files() {
             let file = file_buf.to_str().unwrap().to_string();
@@ -184,7 +180,7 @@ impl Workspace {
         env: &EnvironmentConfig,
         recording: bool,
     ) -> Result<DeployState> {
-        let current_commit = repo.gate_commit_hash()?;
+        let current_commit = repo.gate_commit_hash();
         let database = Database::open_env(
             &self.path_to_config,
             &env.name,

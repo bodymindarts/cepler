@@ -33,15 +33,12 @@ teardown_file() {
   last_changed="aef8e29"
 
   cmd -g `fixture`/cepler-gates.yml check -e gated | grep "${last_changed}"
-  cmd -g `fixture`/cepler-gates.yml record -e gated
 
   echo "new: {}" > `fixture`/gated.yml
   git commit -am 'Update gated.yml'
   head=$(git rev-parse --short HEAD)
 
-  run cmd -g `fixture`/cepler-gates.yml check -e gated
-  [ "$status" -eq 2 ]
-
+  cmd -g `fixture`/cepler-gates.yml check -e gated | grep "${last_changed}"
   cmd check -e gated | grep "${head}"
 }
 
@@ -51,4 +48,24 @@ teardown_file() {
 
   cmd -g `fixture`/cepler-gates.yml prepare -e gated
   grep gated `fixture`/gated.yml
+
+  cmd prepare -e gated
+  grep new `fixture`/gated.yml
+}
+
+@test "Records as gated" {
+  cmd -g `fixture`/cepler-gates.yml prepare -e gated
+  before=$(git rev-parse --short HEAD)
+  cmd record -e gated
+  grep dirty `state gated`
+
+  git reset --hard "${before}"
+
+  cmd -g `fixture`/cepler-gates.yml prepare -e gated
+  cmd -g `fixture`/cepler-gates.yml record -e gated
+  run grep dirty `state gated`
+  [ "$status" -eq 1 ]
+
+  run cmd -g `fixture`/cepler-gates.yml check -e gated
+  [ "$status" -eq 2 ]
 }
