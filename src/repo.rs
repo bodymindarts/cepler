@@ -308,32 +308,34 @@ impl Repo {
         let mut checkout = CheckoutBuilder::new();
         checkout.force();
         checkout.update_index(false);
+        let mut path_added = false;
         for path in self.gate_files_matching(globs, ignore_files) {
+            path_added = true;
             checkout.path(path);
         }
 
-        if clean {
-            for path in glob("**/*").expect("List all files") {
-                let path = path.expect("Get file");
-                if self.is_trackable_file(&path) {
-                    let path = path.as_path();
-                    let check = |p: &glob::Pattern| {
-                        p.matches_path_with(
-                            path,
-                            glob::MatchOptions {
-                                case_sensitive: true,
-                                require_literal_separator: true,
-                                require_literal_leading_dot: true,
-                            },
-                        )
-                    };
-                    if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
+        for path in glob("**/*").expect("List all files") {
+            let path = path.expect("Get file");
+            if self.is_trackable_file(&path) {
+                let path = path.as_path();
+                let check = |p: &glob::Pattern| {
+                    p.matches_path_with(
+                        path,
+                        glob::MatchOptions {
+                            case_sensitive: true,
+                            require_literal_separator: true,
+                            require_literal_leading_dot: true,
+                        },
+                    )
+                };
+                if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
+                    if clean || globs.iter().any(|p| check(p)) {
                         std::fs::remove_file(path).expect("Couldn't remove file");
                     }
                 }
             }
         }
-        if !globs.is_empty() {
+        if path_added {
             self.inner
                 .checkout_tree(&self.gate_object(), Some(&mut checkout))
                 .expect("Couldn't checkout");
