@@ -24,7 +24,7 @@ impl fmt::Display for CommitHash {
     }
 }
 impl CommitHash {
-    pub fn to_inner(self) -> String {
+    pub fn inner(self) -> String {
         self.0
     }
 

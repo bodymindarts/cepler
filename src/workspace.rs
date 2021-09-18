@@ -65,7 +65,7 @@ impl Workspace {
                 eprintln!("File {} was removed", name)
             }
         }
-        Ok(Some((new_env_state.head_commit.to_inner(), diffs)))
+        Ok(Some((new_env_state.head_commit.inner(), diffs)))
     }
 
     pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
@@ -139,7 +139,7 @@ impl Workspace {
         eprintln!("Recording current state");
         let repo = Repo::open(gate)?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
-        let head_commit = new_env_state.head_commit.clone().to_inner();
+        let head_commit = new_env_state.head_commit.clone().inner();
         let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
             new_env_state.diff(last_state)
         } else {

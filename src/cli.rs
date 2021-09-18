@@ -254,7 +254,7 @@ fn latest(matches: &ArgMatches, (_, config_file): (Config, String)) -> Result<()
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let db = Database::open(&config_file)?;
     if let Some(env) = db.get_current_state(env) {
-        println!("{}", env.head_commit.clone().to_inner());
+        println!("{}", env.head_commit.clone().inner());
     } else {
         eprintln!("Environment not deployed");
         std::process::exit(1);
