@@ -1,7 +1,8 @@
 use anyhow::*;
 use git2::{
-    build::CheckoutBuilder, BranchType, Commit, Cred, MergeOptions, ObjectType, Oid, PushOptions,
-    RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode, TreeWalkResult,
+    build::CheckoutBuilder, BranchType, Commit, Cred, MergeOptions, Object, ObjectType, Oid,
+    PushOptions, RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode,
+    TreeWalkResult,
 };
 use glob::*;
 use serde::{Deserialize, Serialize};
@@ -199,14 +200,15 @@ impl Repo {
         Ok(())
     }
 
-    fn head_files<'a>(
+    fn gate_files_matching<'a>(
         &self,
         filters: &'a [String],
         ignore_files: &'a [Pattern],
     ) -> impl Iterator<Item = PathBuf> + 'a {
         let mut opts = MatchOptions::new();
         opts.require_literal_leading_dot = true;
-        let repo = Self::open(None).expect("Couldn't re-open repo");
+        let gate = self.gate_oid().to_string();
+        let repo = Self::open(Some(gate)).expect("Couldn't re-open repo");
         let filter = move |file: &PathBuf| {
             repo.is_trackable_file(file)
                 && !ignore_files.iter().any(|p| {
@@ -290,45 +292,56 @@ impl Repo {
         Ok(())
     }
 
-    pub fn checkout_head(
-        &self,
-        filters: Option<&[String]>,
-        ignore_files: &[Pattern],
-    ) -> Result<()> {
-        self.inner
-            .reset(self.gate_commit().as_object(), ResetType::Hard, None)?;
-        if let Some(filters) = filters {
-            let mut checkout = CheckoutBuilder::new();
-            checkout.force();
-            for path in self.head_files(filters, ignore_files) {
-                checkout.path(path);
-            }
+    pub fn checkout_gate(&self) -> Result<()> {
+        let object = self
+            .inner
+            .find_object(self.gate_oid(), Some(ObjectType::Commit))?;
+        let mut checkout = CheckoutBuilder::new();
+        checkout.force();
+        checkout.update_index(false);
+        self.inner.checkout_tree(&object, Some(&mut checkout))?;
+        Ok(())
+    }
 
-            for path in glob("**/*").expect("List all files") {
-                let path = path.expect("Get file");
-                if self.is_trackable_file(&path) {
-                    let path = path.as_path();
-                    let check = |p: &glob::Pattern| {
-                        p.matches_path_with(
-                            path,
-                            glob::MatchOptions {
-                                case_sensitive: true,
-                                require_literal_separator: true,
-                                require_literal_leading_dot: true,
-                            },
-                        )
-                    };
-                    if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
-                        std::fs::remove_file(path).expect("Couldn't remove file");
-                    }
+    pub fn rm_all_except(&self, globs: &[String], ignore_files: &[Pattern]) -> Result<()> {
+        let mut checkout = CheckoutBuilder::new();
+        checkout.force();
+        for path in self.gate_files_matching(globs, ignore_files) {
+            checkout.path(path);
+        }
+
+        for path in glob("**/*").expect("List all files") {
+            let path = path.expect("Get file");
+            if self.is_trackable_file(&path) {
+                let path = path.as_path();
+                let check = |p: &glob::Pattern| {
+                    p.matches_path_with(
+                        path,
+                        glob::MatchOptions {
+                            case_sensitive: true,
+                            require_literal_separator: true,
+                            require_literal_leading_dot: true,
+                        },
+                    )
+                };
+                if !ignore_files.iter().any(|p| check(p)) && path.is_file() {
+                    std::fs::remove_file(path).expect("Couldn't remove file");
                 }
             }
-            if !filters.is_empty() {
-                self.inner
-                    .checkout_head(Some(&mut checkout))
-                    .expect("Couldn't checkout");
-            }
         }
+        if !globs.is_empty() {
+            self.inner
+                .checkout_tree(&self.gate_object(), Some(&mut checkout))
+                .expect("Couldn't checkout");
+        }
+        Ok(())
+    }
+
+    pub fn checkout_head(&self) -> Result<()> {
+        let mut checkout = CheckoutBuilder::new();
+        checkout.force();
+        checkout.update_index(false);
+        self.inner.checkout_head(Some(&mut checkout))?;
         Ok(())
     }
 
@@ -437,6 +450,12 @@ impl Repo {
 
     fn gate_oid(&self) -> Oid {
         self.gate_commit().id()
+    }
+
+    fn gate_object(&self) -> Object {
+        self.inner
+            .find_object(self.gate_oid(), Some(ObjectType::Commit))
+            .unwrap()
     }
 
     pub fn get_file_from_branch<F, T>(&self, name: &str, file: &Path, f: F) -> Result<Option<T>>

@@ -72,12 +72,8 @@ impl Workspace {
         let repo = Repo::open(None)?;
         if let Some(last_state) = self.db.get_current_state(&env.name) {
             if force_clean {
-                let file_names: Vec<String> = last_state
-                    .files
-                    .iter()
-                    .map(|(ident, _)| ident.name())
-                    .collect();
-                repo.checkout_head(Some(&file_names), &self.ignore_list())?;
+                repo.checkout_gate()?;
+                repo.rm_all_except(&[], &self.ignore_list())?;
             }
             for (ident, state) in last_state.files.iter() {
                 repo.checkout_file_from(&ident.name(), &state.from_commit)?;
@@ -94,13 +90,11 @@ impl Workspace {
         force_clean: bool,
     ) -> Result<()> {
         let repo = Repo::open(gate)?;
-        let head_files = if force_clean {
-            Some(env.head_filters())
-        } else {
-            None
-        };
+        repo.checkout_gate()?;
         let ignore_list = self.ignore_list();
-        repo.checkout_head(head_files, &ignore_list)?;
+        if force_clean {
+            repo.rm_all_except(env.head_filters(), &ignore_list)?;
+        };
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         for file_buf in env.propagated_files() {
             let file = file_buf.to_str().unwrap().to_string();
@@ -173,7 +167,7 @@ impl Workspace {
         }
         if reset {
             eprintln!("Reseting head to have a clean workspace");
-            repo.checkout_head(None, &Vec::new())?;
+            repo.checkout_head()?;
         }
         if let Some(config) = git_config {
             eprintln!("Pushing to remote");
