@@ -23,7 +23,10 @@ teardown_file() {
 }
 
 @test "Reports trigger commit" {
+  file_change="26a58e24470ac294f405144f4d7da54afa4b265d"
   cmd record -e testflight
+  cmd latest -e testflight | grep "${file_change}"
+
   head=$(git rev-parse --short HEAD)
   cmd check -e staging | grep "${head}"
 }

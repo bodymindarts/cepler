@@ -1,6 +1,7 @@
 use super::{
     concourse::{self},
     config::*,
+    database::Database,
     repo::*,
     workspace::Workspace,
 };
@@ -26,6 +27,10 @@ fn app() -> App<'static, 'static> {
         )
         (@subcommand ls =>
           (about: "List all files relevent to a given environment")
+          (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
+        )
+        (@subcommand latest =>
+          (about: "Return the commit hash of the lastest record")
           (@arg ENVIRONMENT: -e --("environment") env("CEPLER_ENVIRONMENT") +required +takes_value "The cepler environment")
         )
         (@subcommand record =>
@@ -110,6 +115,7 @@ pub fn run() -> Result<()> {
             conf_from_matches(&matches)?,
             gates_from_matches(&matches)?,
         ),
+        ("latest", Some(sub_matches)) => latest(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
             ("check", Some(_)) => concourse_check(),
             ("ci_in", Some(matches)) => concourse_in(matches),
@@ -241,6 +247,18 @@ fn record(
         .context(format!("Environment '{}' not found in config", env))?;
     let mut ws = Workspace::new(config.1)?;
     ws.record_env(env, gate, commit, reset, git_config)?;
+    Ok(())
+}
+
+fn latest(matches: &ArgMatches, (_, config_file): (Config, String)) -> Result<()> {
+    let env = matches.value_of("ENVIRONMENT").unwrap();
+    let db = Database::open(&config_file)?;
+    if let Some(env) = db.get_current_state(env) {
+        println!("{}", env.head_commit.clone().to_inner());
+    } else {
+        eprintln!("Environment not deployed");
+        std::process::exit(1);
+    }
     Ok(())
 }
 
