@@ -15,8 +15,8 @@ impl Workspace {
         })
     }
 
-    pub fn ls(&self, env: &EnvironmentConfig) -> Result<Vec<String>> {
-        let repo = Repo::open(None)?;
+    pub fn ls(&self, env: &EnvironmentConfig, gate: Option<String>) -> Result<Vec<String>> {
+        let repo = Repo::open(gate)?;
         let new_env_state = self.construct_env_state(&repo, env, false)?;
         Ok(new_env_state
             .files
@@ -135,12 +135,13 @@ impl Workspace {
     pub fn record_env(
         &mut self,
         env: &EnvironmentConfig,
+        gate: Option<String>,
         commit: bool,
         reset: bool,
         git_config: Option<GitConfig>,
     ) -> Result<(String, Vec<FileDiff>)> {
         eprintln!("Recording current state");
-        let repo = Repo::open(None)?;
+        let repo = Repo::open(gate)?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
         let head_commit = new_env_state.head_commit.to_short_ref();
         let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {

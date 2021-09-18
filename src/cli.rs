@@ -89,7 +89,11 @@ pub fn run() -> Result<()> {
     }
 
     match matches.subcommand() {
-        ("ls", Some(sub_matches)) => ls(sub_matches, conf_from_matches(&matches)?),
+        ("ls", Some(sub_matches)) => ls(
+            sub_matches,
+            conf_from_matches(&matches)?,
+            gates_from_matches(&matches)?,
+        ),
         ("check", Some(sub_matches)) => check(
             sub_matches,
             conf_from_matches(&matches)?,
@@ -101,7 +105,11 @@ pub fn run() -> Result<()> {
             gates_from_matches(&matches)?,
         ),
         ("reproduce", Some(sub_matches)) => reproduce(sub_matches, conf_from_matches(&matches)?),
-        ("record", Some(sub_matches)) => record(sub_matches, conf_from_matches(&matches)?),
+        ("record", Some(sub_matches)) => record(
+            sub_matches,
+            conf_from_matches(&matches)?,
+            gates_from_matches(&matches)?,
+        ),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
             ("check", Some(_)) => concourse_check(),
             ("ci_in", Some(matches)) => concourse_in(matches),
@@ -140,14 +148,23 @@ fn check(
     Ok(())
 }
 
-fn ls(matches: &ArgMatches, (config, config_path): (Config, String)) -> Result<()> {
+fn ls(
+    matches: &ArgMatches,
+    (config, config_path): (Config, String),
+    gates: Option<GatesConfig>,
+) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
+    let gate = if let Some(gates) = gates {
+        gates.get_gate(env)?
+    } else {
+        None
+    };
     let ws = Workspace::new(config_path)?;
     let env = config
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
-    for path in ws.ls(env)? {
+    for path in ws.ls(env, gate)? {
         println!("{}", path);
     }
     Ok(())
@@ -192,8 +209,17 @@ fn reproduce(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     Ok(())
 }
 
-fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
+fn record(
+    matches: &ArgMatches,
+    config: (Config, String),
+    gates: Option<GatesConfig>,
+) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
+    let gate = if let Some(gates) = gates {
+        gates.get_gate(env)?
+    } else {
+        None
+    };
     let commit = !matches.is_present("NO_COMMIT");
     let reset = matches.is_present("RESET_HEAD");
     let push = matches.is_present("PUSH");
@@ -214,7 +240,7 @@ fn record(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
     let mut ws = Workspace::new(config.1)?;
-    ws.record_env(env, commit, reset, git_config)?;
+    ws.record_env(env, gate, commit, reset, git_config)?;
     Ok(())
 }
 

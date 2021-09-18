@@ -30,7 +30,13 @@ pub fn exec(origin: &str) -> Result<()> {
         .environments
         .get(&environment)
         .context(format!("Environment '{}' not found in config", environment))?;
-    let (trigger, diff) = ws.record_env(env, true, true, Some(conf))?;
+    let gate = get_gate(
+        source.gates_file.as_ref(),
+        source.gates_branch.as_ref(),
+        &environment,
+        &Repo::open(None)?,
+    )?;
+    let (trigger, diff) = ws.record_env(env, gate, true, true, Some(conf))?;
     println!(
         "{}",
         serde_json::to_string(&ResourceData {
