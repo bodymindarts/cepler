@@ -9,3 +9,7 @@ The gates file is a yaml file with the names of the environments as keys and the
 staging: HEAD
 production: d5739f9cb7ce6b1ff42cda0999c351790288cdc5
 ```
+
+## Improvements
+- rename head -> trigger in concourse version
+- exit 1 on concourse in when trigger is not in sync with expected version
