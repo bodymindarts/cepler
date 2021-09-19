@@ -36,11 +36,11 @@ pub fn exec(origin: &str) -> Result<()> {
         &environment,
         &Repo::open(None)?,
     )?;
-    let (trigger, diff) = ws.record_env(env, gate, true, true, Some(conf))?;
+    let (new_head, diff) = ws.record_env(env, gate, true, true, Some(conf))?;
     println!(
         "{}",
         serde_json::to_string(&ResourceData {
-            version: Version { trigger },
+            version: Version { trigger: new_head },
             metadata: diff
                 .into_iter()
                 .map(|diff| DiffElem {

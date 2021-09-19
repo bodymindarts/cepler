@@ -51,9 +51,9 @@ pub fn exec(destination: &str) -> Result<()> {
         &repo,
     )?;
     let (trigger, diff) = match ws.check(env, gate.clone())? {
-        Some((trigger, diff)) if &trigger != wanted_trigger => {
-            eprintln!("Repo is out of date.");
-            (trigger, diff)
+        Some((trigger, _)) if &trigger != wanted_trigger => {
+            eprintln!("Trigger is out of sync.");
+            std::process::exit(1);
         }
         None => {
             eprintln!("Nothing new to deploy... providing an empty dir");
