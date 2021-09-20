@@ -124,20 +124,34 @@ impl Repo {
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
-        remote.fetch(&[branch.clone()], Some(&mut fo), None).context("Couldn't fetch origin")?;
+        remote
+            .fetch(&[branch.clone()], Some(&mut fo), None)
+            .context("Couldn't fetch origin")?;
 
-        let head_commit = self
+        let annotated_head = self
             .inner
-            .reference_to_annotated_commit(&self.inner.head()?).context("Couldn't find head reference")?;
-        let branch_ref = self
-            .inner
-            .branch_from_annotated_commit(&branch, &head_commit, true).context("Couldn't find local branch")?;
-        let head_commit = self.inner.reference_to_annotated_commit(branch_ref.get())?;
+            .reference_to_annotated_commit(&self.inner.head()?)
+            .context("Couldn't find head reference")?;
+
+        let head_commit = match self.inner.find_branch(&branch, BranchType::Local) {
+            Ok(branch) if branch.is_head() => annotated_head,
+            _ => {
+                let branch_ref = self
+                    .inner
+                    .branch_from_annotated_commit(&branch, &annotated_head, true)
+                    .context("Could not create local branch")?;
+                self.inner.reference_to_annotated_commit(branch_ref.get())?
+            }
+        };
 
         let remote_ref = self
             .inner
-            .resolve_reference_from_short_name(&format!("origin/{}", branch)).context("Couldn't resolve remote branch")?;
-        let remote_commit = self.inner.reference_to_annotated_commit(&remote_ref).context("Couldn't get remote commit")?;
+            .resolve_reference_from_short_name(&format!("origin/{}", branch))
+            .context("Couldn't resolve remote branch")?;
+        let remote_commit = self
+            .inner
+            .reference_to_annotated_commit(&remote_ref)
+            .context("Couldn't get remote commit")?;
 
         let mut rebase_options = RebaseOptions::new();
         let mut merge_options = MergeOptions::new();
@@ -151,20 +165,24 @@ impl Repo {
         )?;
         let sig = Signature::now("Cepler", "bot@cepler.dev")?;
         while let Some(_) = rebase.next() {
-            rebase.commit(None, &sig, None).context("Couldn't commit rebase")?;
+            rebase
+                .commit(None, &sig, None)
+                .context("Couldn't commit rebase")?;
         }
         rebase.finish(None).context("Couldn't finish rebase")?;
 
         let mut push_options = PushOptions::new();
         push_options.remote_callbacks(remote_callbacks(private_key));
-        remote.push(
-            &[format!(
-                "{}:{}",
-                head_commit.refname().unwrap(),
-                head_commit.refname().unwrap(),
-            )],
-            Some(&mut push_options),
-        ).context("Couldn't push to remote")?;
+        remote
+            .push(
+                &[format!(
+                    "{}:{}",
+                    head_commit.refname().unwrap(),
+                    head_commit.refname().unwrap(),
+                )],
+                Some(&mut push_options),
+            )
+            .context("Couldn't push to remote")?;
         Ok(())
     }
 
