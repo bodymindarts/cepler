@@ -17,6 +17,7 @@ pub const MATCH_OPTIONS: glob::MatchOptions = glob::MatchOptions {
 #[derive(Debug, Deserialize)]
 pub struct Config {
     #[serde(default = "default_scope")]
+    #[serde(rename = "deployment")]
     pub scope: String,
     pub environments: HashMap<String, EnvironmentConfig>,
 }
