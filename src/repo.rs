@@ -124,20 +124,20 @@ impl Repo {
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
-        remote.fetch(&[branch.clone()], Some(&mut fo), None)?;
+        remote.fetch(&[branch.clone()], Some(&mut fo), None).context("Couldn't fetch origin")?;
 
         let head_commit = self
             .inner
-            .reference_to_annotated_commit(&self.inner.head()?)?;
+            .reference_to_annotated_commit(&self.inner.head()?).context("Couldn't find head reference")?;
         let branch_ref = self
             .inner
-            .branch_from_annotated_commit(&branch, &head_commit, true)?;
+            .branch_from_annotated_commit(&branch, &head_commit, true).context("Couldn't find local branch")?;
         let head_commit = self.inner.reference_to_annotated_commit(branch_ref.get())?;
 
         let remote_ref = self
             .inner
-            .resolve_reference_from_short_name(&format!("origin/{}", branch))?;
-        let remote_commit = self.inner.reference_to_annotated_commit(&remote_ref)?;
+            .resolve_reference_from_short_name(&format!("origin/{}", branch)).context("Couldn't resolve remote branch")?;
+        let remote_commit = self.inner.reference_to_annotated_commit(&remote_ref).context("Couldn't get remote commit")?;
 
         let mut rebase_options = RebaseOptions::new();
         let mut merge_options = MergeOptions::new();
@@ -151,9 +151,9 @@ impl Repo {
         )?;
         let sig = Signature::now("Cepler", "bot@cepler.dev")?;
         while let Some(_) = rebase.next() {
-            rebase.commit(None, &sig, None)?;
+            rebase.commit(None, &sig, None).context("Couldn't commit rebase")?;
         }
-        rebase.finish(None)?;
+        rebase.finish(None).context("Couldn't finish rebase")?;
 
         let mut push_options = PushOptions::new();
         push_options.remote_callbacks(remote_callbacks(private_key));
@@ -164,7 +164,7 @@ impl Repo {
                 head_commit.refname().unwrap(),
             )],
             Some(&mut push_options),
-        )?;
+        ).context("Couldn't push to remote")?;
         Ok(())
     }
 
