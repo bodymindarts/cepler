@@ -1,5 +1,6 @@
 ## Feature
 
+- add `scope` (default = "default") to config file to better represent multiple propagations in 1 repo
 - add `latest -e <env>` command to print the commit hash of the last recording
 - `-g / --gates` flag for providing a commit per environment up to which preparations are allowed
 - `--gates-branch` optional flag to checkout the gates file from another branch
