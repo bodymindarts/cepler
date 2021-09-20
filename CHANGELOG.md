@@ -1,3 +1,22 @@
+# [cepler release v0.7.0](https://github.com/bodymindarts/cepler/releases/tag/v0.7.0)
+
+## Feature
+
+- add `deployment` (default = "default") to config file to better represent multiple propagations in 1 repo
+- add `latest -e <env>` command to print the commit hash of the last recording
+- `-g / --gates` flag for providing a commit per environment up to which preparations are allowed
+- `--gates-branch` optional flag to checkout the gates file from another branch
+
+The gates file is a yaml file with the names of the environments as keys and the complete git hahs as values:
+```
+staging: HEAD
+production: d5739f9cb7ce6b1ff42cda0999c351790288cdc5
+```
+
+## Improvements
+- rename head -> trigger in concourse version
+- exit 1 on concourse in when trigger is not in sync with expected version
+
 # [cepler release v0.6.5](https://github.com/bodymindarts/cepler/releases/tag/v0.6.5)
 
 ## Improvements
