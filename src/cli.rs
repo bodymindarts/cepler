@@ -137,7 +137,7 @@ fn check(
     } else {
         None
     };
-    let ws = Workspace::new(config_path)?;
+    let ws = Workspace::new(&config.scope, config_path)?;
     let env = config
         .environments
         .get(env)
@@ -165,7 +165,7 @@ fn ls(
     } else {
         None
     };
-    let ws = Workspace::new(config_path)?;
+    let ws = Workspace::new(&config.scope, config_path)?;
     let env = config
         .environments
         .get(env)
@@ -195,7 +195,7 @@ fn prepare(
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
-    let ws = Workspace::new(config.1)?;
+    let ws = Workspace::new(&config.0.scope, config.1)?;
     ws.prepare(env, gate, force_clean)?;
     Ok(())
 }
@@ -210,7 +210,7 @@ fn reproduce(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
-    let ws = Workspace::new(config.1)?;
+    let ws = Workspace::new(&config.0.scope, config.1)?;
     ws.reproduce(env, force_clean)?;
     Ok(())
 }
@@ -245,14 +245,14 @@ fn record(
         .environments
         .get(env)
         .context(format!("Environment '{}' not found in config", env))?;
-    let mut ws = Workspace::new(config.1)?;
+    let mut ws = Workspace::new(&config.0.scope, config.1)?;
     ws.record_env(env, gate, commit, reset, git_config)?;
     Ok(())
 }
 
-fn latest(matches: &ArgMatches, (_, config_file): (Config, String)) -> Result<()> {
+fn latest(matches: &ArgMatches, (config, config_file): (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
-    let db = Database::open(&config_file)?;
+    let db = Database::open(&config.scope, &config_file)?;
     if let Some(env) = db.get_current_state(env) {
         println!("{}", env.head_commit.clone().inner());
     } else {

@@ -25,7 +25,7 @@ pub fn exec(origin: &str) -> Result<()> {
             .environment
             .ok_or_else(|| anyhow!("Environment not specified in source"))
     })?;
-    let mut ws = Workspace::new(source.config)?;
+    let mut ws = Workspace::new(&config.scope, source.config)?;
     let env = config
         .environments
         .get(&environment)

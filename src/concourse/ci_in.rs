@@ -28,7 +28,7 @@ pub fn exec(destination: &str) -> Result<()> {
     );
 
     let config = Config::from_file(&source.config)?;
-    let ws = Workspace::new(source.config)?;
+    let ws = Workspace::new(&config.scope, source.config)?;
     let environment = if let Some(environment) = source.environment {
         environment
     } else {

@@ -16,6 +16,8 @@ pub const MATCH_OPTIONS: glob::MatchOptions = glob::MatchOptions {
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    #[serde(default = "default_scope")]
+    pub scope: String,
     pub environments: HashMap<String, EnvironmentConfig>,
 }
 
@@ -118,6 +120,10 @@ impl EnvironmentConfig {
     }
 }
 
+fn default_scope() -> String {
+    "default".to_string()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct RepoConfig {
     pub uri: String,
@@ -141,6 +147,7 @@ mod test {
         assert!(&conf.environments.get("testflight").unwrap().name == "testflight");
         assert!(
             conf.environments.get("testflight").unwrap().head_files == vec!["file.yml".to_string()]
-        )
+        );
+        assert!(conf.scope == "default".to_string());
     }
 }

@@ -16,7 +16,7 @@ config() {
 }
 
 state() {
-  echo "test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/.cepler/$1.state"
+  echo "test/fixtures/$(basename ${BATS_TEST_FILENAME%%.*})/.cepler/default/$1.state"
 }
 
 fixture() {

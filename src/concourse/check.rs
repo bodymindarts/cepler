@@ -63,7 +63,7 @@ pub fn exec() -> Result<()> {
     );
 
     let config = Config::from_file(&source.config)?;
-    let ws = Workspace::new(source.config)?;
+    let ws = Workspace::new(&config.scope, source.config)?;
     let environment = source
         .environment
         .ok_or_else(|| anyhow!("Environment not specified in source"))?;

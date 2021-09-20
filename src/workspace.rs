@@ -4,13 +4,15 @@ use std::path::Path;
 
 pub struct Workspace {
     path_to_config: String,
+    scope: String,
     db: Database,
 }
 
 impl Workspace {
-    pub fn new(path_to_config: String) -> Result<Self> {
+    pub fn new(scope: &str, path_to_config: String) -> Result<Self> {
         Ok(Self {
-            db: Database::open(&path_to_config)?,
+            db: Database::open(scope, &path_to_config)?,
+            scope: scope.to_string(),
             path_to_config,
         })
     }
@@ -183,6 +185,7 @@ impl Workspace {
         let current_commit = repo.gate_commit_hash();
         let database = Database::open_env(
             &self.path_to_config,
+            &self.scope,
             &env.name,
             env.propagated_from(),
             current_commit.clone(),
@@ -232,6 +235,7 @@ impl Workspace {
         };
         let database = Database::open_env(
             &self.path_to_config,
+            &config.scope,
             &env.name,
             env.propagated_from(),
             commit.clone(),

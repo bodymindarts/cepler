@@ -18,14 +18,22 @@ pub struct Database {
 const STATE_DIR: &str = ".cepler";
 
 impl Database {
-    pub fn open(path_to_config: &str) -> Result<Self> {
-        let mut state = DbState::default();
+    pub fn state_dir_from_config(scope: &str, path_to_config: &str ) -> String {
         let path = Path::new(path_to_config);
-        let dir = match path.parent() {
-            Some(parent) if parent == Path::new("") => STATE_DIR.to_string(),
-            None => STATE_DIR.to_string(),
-            Some(parent) => format!("{}/{}", parent.to_str().unwrap(), STATE_DIR),
-        };
+        format!(
+            "{}/{}",
+            match path.parent() {
+                Some(parent) if parent == Path::new("") => STATE_DIR.to_string(),
+                None => STATE_DIR.to_string(),
+                Some(parent) => format!("{}/{}", parent.to_str().unwrap(), STATE_DIR),
+            },
+            scope
+        )
+    }
+
+    pub fn open(scope: &str, path_to_config: &str) -> Result<Self> {
+        let mut state = DbState::default();
+        let dir = Self::state_dir_from_config(scope, path_to_config);
         if Path::new(&dir).is_dir() {
             for path in glob(&format!("{}/*.state", dir))? {
                 let path = path?;
@@ -48,17 +56,13 @@ impl Database {
 
     pub fn open_env(
         path_to_config: &str,
+        scope: &str,
         env_name: &str,
         propagated_name: Option<&String>,
         commit: CommitHash,
         repo: &Repo,
     ) -> Result<Self> {
-        let path = Path::new(path_to_config);
-        let dir = match path.parent() {
-            Some(parent) if parent == Path::new("") => STATE_DIR.to_string(),
-            None => STATE_DIR.to_string(),
-            Some(parent) => format!("{}/{}", parent.to_str().unwrap(), STATE_DIR),
-        };
+        let dir = Self::state_dir_from_config(scope, path_to_config);
         let env_file = format!("{}/{}.state", dir, env_name);
         let env_path = Path::new(&env_file);
         let env_state = repo.get_file_content(commit.clone(), env_path, |bytes| {
@@ -177,7 +181,7 @@ impl Database {
         use std::fs;
         use std::io::Write;
         let _ = fs::remove_dir_all(&self.state_dir);
-        fs::create_dir(&self.state_dir)?;
+        fs::create_dir_all(&self.state_dir)?;
         for (name, env) in self.state.environments.iter() {
             let mut file = File::create(&format!("{}/{}.state", self.state_dir, name))?;
             let mut bytes = serde_yaml::to_vec(&env)?;
