@@ -18,7 +18,7 @@ pub struct Database {
 const STATE_DIR: &str = ".cepler";
 
 impl Database {
-    pub fn state_dir_from_config(scope: &str, path_to_config: &str ) -> String {
+    pub fn state_dir_from_config(scope: &str, path_to_config: &str) -> String {
         let path = Path::new(path_to_config);
         format!(
             "{}/{}",
