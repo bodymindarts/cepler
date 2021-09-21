@@ -1,4 +1,4 @@
-use super::config::MATCH_OPTIONS;
+use super::config::{default_scope, MATCH_OPTIONS};
 use anyhow::*;
 use git2::{
     build::CheckoutBuilder, BranchType, Commit, Cred, MergeOptions, Object, ObjectType, Oid,
@@ -200,7 +200,7 @@ impl Repo {
         Ok(Self { inner, gate })
     }
 
-    pub fn commit_state_file(&self, file_name: String) -> Result<()> {
+    pub fn commit_state_file(&self, scope: &str, file_name: String) -> Result<()> {
         let path = Path::new(&file_name);
         let mut index = self.inner.index()?;
         index.add_path(path)?;
@@ -209,17 +209,20 @@ impl Repo {
         let sig = Signature::now("Cepler", "bot@cepler.io")?;
 
         let head_commit = self.inner.head().unwrap().peel_to_commit().unwrap();
-        self.inner.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            &format!(
+        let msg = if scope != default_scope() {
+            format!(
+                "[cepler] Updated {} state in {}",
+                scope,
+                path.file_stem().unwrap().to_str().unwrap()
+            )
+        } else {
+            format!(
                 "[cepler] Updated {} state",
                 path.file_stem().unwrap().to_str().unwrap()
-            ),
-            &tree,
-            &[&head_commit],
-        )?;
+            )
+        };
+        self.inner
+            .commit(Some("HEAD"), &sig, &sig, &msg, &tree, &[&head_commit])?;
         let mut checkout = CheckoutBuilder::new();
         checkout.path(path);
         self.inner.checkout_index(None, Some(&mut checkout))?;

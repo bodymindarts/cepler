@@ -162,7 +162,7 @@ impl Workspace {
         )?;
         if commit {
             eprintln!("Adding commit to repository to persist state");
-            repo.commit_state_file(state_file)?;
+            repo.commit_state_file(&self.scope, state_file)?;
         }
         if reset {
             eprintln!("Reseting head to have a clean workspace");

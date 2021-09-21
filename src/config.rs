@@ -121,7 +121,7 @@ impl EnvironmentConfig {
     }
 }
 
-fn default_scope() -> String {
+pub fn default_scope() -> String {
     "default".to_string()
 }
 
