@@ -211,13 +211,13 @@ impl Repo {
         let head_commit = self.inner.head().unwrap().peel_to_commit().unwrap();
         let msg = if scope != default_scope() {
             format!(
-                "[cepler] Updated {} state in {}",
+                "[cepler] Updated '{}' state in '{}'",
                 scope,
                 path.file_stem().unwrap().to_str().unwrap()
             )
         } else {
             format!(
-                "[cepler] Updated {} state",
+                "[cepler] Updated '{}' state",
                 path.file_stem().unwrap().to_str().unwrap()
             )
         };
