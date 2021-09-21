@@ -1,3 +1,9 @@
+# [cepler release v0.7.1](https://github.com/bodymindarts/cepler/releases/tag/v0.7.1)
+
+## Improvements
+
+- Commit message displays deployment name
+
 # [cepler release v0.7.0](https://github.com/bodymindarts/cepler/releases/tag/v0.7.0)
 
 ## Feature
