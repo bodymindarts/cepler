@@ -21,10 +21,10 @@ pub fn exec(destination: &str) -> Result<()> {
     let path = Path::new(&destination);
     let repo = Repo::clone(conf).context("Couldn't clone repo")?;
     std::env::set_current_dir(path)?;
+    let (hash, summary) = repo.head_commit_summary()?;
     eprintln!(
-        "HEAD of branch '{}' is now at: '{}'",
-        source.branch,
-        repo.head_commit_hash()?
+        "HEAD of branch '{}' is now at: [{}] - {}",
+        source.branch, hash, summary
     );
 
     let config = Config::from_file(&source.config)?;
@@ -80,7 +80,7 @@ pub fn exec(destination: &str) -> Result<()> {
                     value: diff
                         .current_state
                         .map(|state| state.to_string())
-                        .unwrap_or_else(String::new)
+                        .unwrap_or_else(|| "File was removed".to_string())
                 })
                 .collect()
         })?

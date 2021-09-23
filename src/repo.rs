@@ -291,15 +291,11 @@ impl Repo {
         CommitHash(self.gate_oid().to_string())
     }
 
-    pub fn head_commit_hash(&self) -> Result<CommitHash> {
-        Ok(CommitHash(
-            self.inner
-                .head()
-                .unwrap()
-                .peel_to_commit()
-                .unwrap()
-                .id()
-                .to_string(),
+    pub fn head_commit_summary(&self) -> Result<(CommitHash, String)> {
+        let commit = self.inner.head().unwrap().peel_to_commit().unwrap();
+        Ok((
+            CommitHash(commit.id().to_string()),
+            commit.summary().expect("Couldn't get summary").to_string(),
         ))
     }
 

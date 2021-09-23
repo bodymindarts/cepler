@@ -20,7 +20,7 @@ pub fn exec() -> Result<()> {
     }: ResourceConfig = resource.clone();
     if let Some(ref version) = version {
         eprintln!(
-            "Last deployed trigger: '{}', checking if we can deploy a newer version",
+            "Last trigger: '{}', checking if we can deploy a newer version",
             version.trigger
         );
     } else {
@@ -56,10 +56,10 @@ pub fn exec() -> Result<()> {
         repo.pull(conf)?;
         repo
     };
+    let (hash, summary) = repo.head_commit_summary()?;
     eprintln!(
-        "HEAD of branch '{}' is now at: '{}'",
-        source.branch,
-        repo.head_commit_hash()?
+        "HEAD of branch '{}' is now at: [{}] - {}",
+        source.branch, hash, summary
     );
 
     let config = Config::from_file(&source.config)?;
@@ -89,8 +89,13 @@ pub fn exec() -> Result<()> {
             res.push(last);
             res.push(Version { trigger })
         }
-        (Some(last), _) => {
-            eprintln!("Nothing new to deploy");
+        (Some(last), ret) => {
+            match ret {
+                Some((trigger, _)) if last.trigger == trigger => {
+                    eprintln!("Last trigger is still up to date")
+                }
+                _ => eprintln!("Nothing new to deploy"),
+            }
             res.push(last);
         }
         _ => {
