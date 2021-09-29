@@ -141,7 +141,7 @@ fn check(
     let env = config
         .environments
         .get(env)
-        .context(format!("Environment '{}' not found in config", env))?;
+        .context(format!("Environment '{}' not found in config '{}'", env, config_path))?;
     match ws.check(env, gate)? {
         None => {
             println!("Nothing new to deploy");
@@ -169,7 +169,7 @@ fn ls(
     let env = config
         .environments
         .get(env)
-        .context(format!("Environment '{}' not found in config", env))?;
+        .context(format!("Environment '{}' not found in config '{}'", env, config_path))?;
     for path in ws.ls(env, gate)? {
         println!("{}", path);
     }
@@ -194,7 +194,7 @@ fn prepare(
         .0
         .environments
         .get(env)
-        .context(format!("Environment '{}' not found in config", env))?;
+        .context(format!("Environment '{}' not found in config '{}'", env, config.1))?;
     let ws = Workspace::new(&config.0.scope, config.1)?;
     ws.prepare(env, gate, force_clean)?;
     Ok(())
@@ -209,7 +209,7 @@ fn reproduce(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
         .0
         .environments
         .get(env)
-        .context(format!("Environment '{}' not found in config", env))?;
+        .context(format!("Environment '{}' not found in config '{}'", env, config.1))?;
     let ws = Workspace::new(&config.0.scope, config.1)?;
     ws.reproduce(env, force_clean)?;
     Ok(())
@@ -244,7 +244,7 @@ fn record(
         .0
         .environments
         .get(env)
-        .context(format!("Environment '{}' not found in config", env))?;
+        .context(format!("Environment '{}' not found in config '{}'", env, config.1))?;
     let mut ws = Workspace::new(&config.0.scope, config.1)?;
     ws.record_env(env, gate, commit, reset, git_config)?;
     Ok(())

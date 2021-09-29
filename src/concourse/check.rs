@@ -70,7 +70,7 @@ pub fn exec() -> Result<()> {
     let env = config
         .environments
         .get(&environment)
-        .context(format!("Environment '{}' not found in config", environment))?;
+        .context(format!("Environment '{}' not found in config '{}'", environment, source.config))?;
     eprintln!("Checking equivalence with last deployed state...");
     let mut res = Vec::new();
     let gate = get_gate(
