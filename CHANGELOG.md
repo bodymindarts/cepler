@@ -1,3 +1,9 @@
+# [cepler release v0.7.2](https://github.com/bodymindarts/cepler/releases/tag/v0.7.2)
+
+## Improvements
+- Add `--ignore-queue` to apply the head version of the previous environment.
+- Many small wording improvements.
+
 # [cepler release v0.7.1](https://github.com/bodymindarts/cepler/releases/tag/v0.7.1)
 
 ## Improvements
