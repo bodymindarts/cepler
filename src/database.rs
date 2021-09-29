@@ -12,6 +12,7 @@ use std::{
 
 pub struct Database {
     state: DbState,
+    ignore_queue: bool,
     pub state_dir: String,
 }
 
@@ -31,7 +32,7 @@ impl Database {
         )
     }
 
-    pub fn open(scope: &str, path_to_config: &str) -> Result<Self> {
+    pub fn open(scope: &str, path_to_config: &str, ignore_queue: bool) -> Result<Self> {
         let mut state = DbState::default();
         let dir = Self::state_dir_from_config(scope, path_to_config);
         if Path::new(&dir).is_dir() {
@@ -51,11 +52,13 @@ impl Database {
         Ok(Self {
             state,
             state_dir: dir,
+            ignore_queue,
         })
     }
 
     pub fn open_env(
         path_to_config: &str,
+        ignore_queue: bool,
         scope: &str,
         env_name: &str,
         propagated_name: Option<&String>,
@@ -84,6 +87,7 @@ impl Database {
         Ok(Self {
             state,
             state_dir: dir,
+            ignore_queue,
         })
     }
 
@@ -131,7 +135,10 @@ impl Database {
         ) {
             (Some(env), Some(from)) => {
                 if let Some(from_head) = env.current.propagated_head.as_ref() {
-                    if from_head == &from.current.head_commit || from.propagation_queue.is_empty() {
+                    if self.ignore_queue
+                        || from_head == &from.current.head_commit
+                        || from.propagation_queue.is_empty()
+                    {
                         Some(&from.current)
                     } else {
                         let mut ret = &from.current;

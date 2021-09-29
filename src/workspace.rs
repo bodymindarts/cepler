@@ -5,15 +5,17 @@ use std::path::Path;
 pub struct Workspace {
     path_to_config: String,
     scope: String,
+    ignore_queue: bool,
     db: Database,
 }
 
 impl Workspace {
-    pub fn new(scope: &str, path_to_config: String) -> Result<Self> {
+    pub fn new(scope: &str, path_to_config: String, ignore_queue: bool) -> Result<Self> {
         Ok(Self {
-            db: Database::open(scope, &path_to_config)?,
+            db: Database::open(scope, &path_to_config, ignore_queue)?,
             scope: scope.to_string(),
             path_to_config,
+            ignore_queue,
         })
     }
 
@@ -185,6 +187,7 @@ impl Workspace {
         let current_commit = repo.gate_commit_hash();
         let database = Database::open_env(
             &self.path_to_config,
+            self.ignore_queue,
             &self.scope,
             &env.name,
             env.propagated_from(),
@@ -235,6 +238,7 @@ impl Workspace {
         };
         let database = Database::open_env(
             &self.path_to_config,
+            self.ignore_queue,
             &config.scope,
             &env.name,
             env.propagated_from(),

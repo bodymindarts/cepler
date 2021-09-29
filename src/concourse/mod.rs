@@ -22,6 +22,8 @@ struct Source {
     gates_file: Option<String>,
     private_key: String,
     environment: Option<String>,
+    #[serde(default = "bool::default")]
+    ignore_queue: bool,
     #[serde(default = "default_config_path")]
     config: String,
 }

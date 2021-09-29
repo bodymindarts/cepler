@@ -35,3 +35,19 @@ teardown_file() {
 
   cmd check -e staging
 }
+
+@test "Prepares next in queue" {
+  echo "propagated_other: {}" > `fixture`/propagated.yml
+  git commit -am 'Update propagated.yml again'
+
+  cmd check -e testflight
+  cmd record -e testflight
+
+  cmd prepare -e staging
+  grep 'propagated_new' `fixture`/propagated.yml
+}
+
+@test "Can ignore queue" {
+  cmd --ignore-queue prepare -e staging
+  grep 'propagated_other' `fixture`/propagated.yml
+}

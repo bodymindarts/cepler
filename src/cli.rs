@@ -15,6 +15,7 @@ fn app() -> App<'static, 'static> {
         (@setting VersionlessSubcommands)
         (@setting SubcommandRequiredElseHelp)
         (@arg CONFIG_FILE: -c --("config") env("CEPLER_CONF") default_value("cepler.yml") "Cepler config file")
+        (@arg IGNORE_QUEUE: --("ignore-queue") "Ignore the propagation queue")
         (@arg GATES_FILE: -g --("gates") +takes_value env("CEPLER_GATES") "Cepler gate file")
         (@arg GATES_BRANCH: --("gates-branch") +takes_value requires_all(&["GATES_FILE"]) env("GATES_BRANCH") "Branch to find the gate file")
         (@arg CLONE_DIR: --("clone") +takes_value requires_all(&["GIT_URL", "GIT_PRIVATE_KEY"]) "Clone the repository into <dir>. Pulls latest changes if already present.")
@@ -75,6 +76,7 @@ fn app() -> App<'static, 'static> {
 
 pub fn run() -> Result<()> {
     let matches = app().get_matches();
+    let ignore_queue = matches.is_present("IGNORE_QUEUE");
     if let Some(dir) = matches.value_of("CLONE_DIR") {
         let conf = GitConfig {
             url: matches.value_of("GIT_URL").unwrap().to_string(),
@@ -98,22 +100,26 @@ pub fn run() -> Result<()> {
             sub_matches,
             conf_from_matches(&matches)?,
             gates_from_matches(&matches)?,
+            ignore_queue,
         ),
         ("check", Some(sub_matches)) => check(
             sub_matches,
             conf_from_matches(&matches)?,
             gates_from_matches(&matches)?,
+            ignore_queue,
         ),
         ("prepare", Some(sub_matches)) => prepare(
             sub_matches,
             conf_from_matches(&matches)?,
             gates_from_matches(&matches)?,
+            ignore_queue,
         ),
         ("reproduce", Some(sub_matches)) => reproduce(sub_matches, conf_from_matches(&matches)?),
         ("record", Some(sub_matches)) => record(
             sub_matches,
             conf_from_matches(&matches)?,
             gates_from_matches(&matches)?,
+            ignore_queue,
         ),
         ("latest", Some(sub_matches)) => latest(sub_matches, conf_from_matches(&matches)?),
         ("concourse", Some(sub_matches)) => match sub_matches.subcommand() {
@@ -130,6 +136,7 @@ fn check(
     matches: &ArgMatches,
     (config, config_path): (Config, String),
     gates: Option<GatesConfig>,
+    ignore_queue: bool,
 ) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let gate = if let Some(gates) = gates {
@@ -137,11 +144,11 @@ fn check(
     } else {
         None
     };
-    let ws = Workspace::new(&config.scope, config_path)?;
-    let env = config
-        .environments
-        .get(env)
-        .context(format!("Environment '{}' not found in config '{}'", env, config_path))?;
+    let ws = Workspace::new(&config.scope, config_path.clone(), ignore_queue)?;
+    let env = config.environments.get(env).context(format!(
+        "Environment '{}' not found in config '{}'",
+        env, config_path
+    ))?;
     match ws.check(env, gate)? {
         None => {
             println!("Nothing new to deploy");
@@ -158,6 +165,7 @@ fn ls(
     matches: &ArgMatches,
     (config, config_path): (Config, String),
     gates: Option<GatesConfig>,
+    ignore_queue: bool,
 ) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let gate = if let Some(gates) = gates {
@@ -165,11 +173,11 @@ fn ls(
     } else {
         None
     };
-    let ws = Workspace::new(&config.scope, config_path)?;
-    let env = config
-        .environments
-        .get(env)
-        .context(format!("Environment '{}' not found in config '{}'", env, config_path))?;
+    let ws = Workspace::new(&config.scope, config_path.clone(), ignore_queue)?;
+    let env = config.environments.get(env).context(format!(
+        "Environment '{}' not found in config '{}'",
+        env, config_path
+    ))?;
     for path in ws.ls(env, gate)? {
         println!("{}", path);
     }
@@ -179,6 +187,7 @@ fn prepare(
     matches: &ArgMatches,
     config: (Config, String),
     gates: Option<GatesConfig>,
+    ignore_queue: bool,
 ) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let force_clean: bool = matches.is_present("FORCE_CLEAN");
@@ -190,12 +199,11 @@ fn prepare(
     } else {
         None
     };
-    let env = config
-        .0
-        .environments
-        .get(env)
-        .context(format!("Environment '{}' not found in config '{}'", env, config.1))?;
-    let ws = Workspace::new(&config.0.scope, config.1)?;
+    let env = config.0.environments.get(env).context(format!(
+        "Environment '{}' not found in config '{}'",
+        env, config.1
+    ))?;
+    let ws = Workspace::new(&config.0.scope, config.1, ignore_queue)?;
     ws.prepare(env, gate, force_clean)?;
     Ok(())
 }
@@ -205,12 +213,11 @@ fn reproduce(matches: &ArgMatches, config: (Config, String)) -> Result<()> {
     if force_clean {
         println!("WARNING removing all non-cepler specified files");
     }
-    let env = config
-        .0
-        .environments
-        .get(env)
-        .context(format!("Environment '{}' not found in config '{}'", env, config.1))?;
-    let ws = Workspace::new(&config.0.scope, config.1)?;
+    let env = config.0.environments.get(env).context(format!(
+        "Environment '{}' not found in config '{}'",
+        env, config.1
+    ))?;
+    let ws = Workspace::new(&config.0.scope, config.1, false)?;
     ws.reproduce(env, force_clean)?;
     Ok(())
 }
@@ -219,6 +226,7 @@ fn record(
     matches: &ArgMatches,
     config: (Config, String),
     gates: Option<GatesConfig>,
+    ignore_queue: bool,
 ) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let gate = if let Some(gates) = gates {
@@ -240,19 +248,18 @@ fn record(
     } else {
         None
     };
-    let env = config
-        .0
-        .environments
-        .get(env)
-        .context(format!("Environment '{}' not found in config '{}'", env, config.1))?;
-    let mut ws = Workspace::new(&config.0.scope, config.1)?;
+    let env = config.0.environments.get(env).context(format!(
+        "Environment '{}' not found in config '{}'",
+        env, config.1
+    ))?;
+    let mut ws = Workspace::new(&config.0.scope, config.1, ignore_queue)?;
     ws.record_env(env, gate, commit, reset, git_config)?;
     Ok(())
 }
 
 fn latest(matches: &ArgMatches, (config, config_file): (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
-    let db = Database::open(&config.scope, &config_file)?;
+    let db = Database::open(&config.scope, &config_file, false)?;
     if let Some(env) = db.get_current_state(env) {
         println!("{}", env.head_commit.clone().inner());
     } else {
