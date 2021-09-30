@@ -111,10 +111,12 @@ impl Workspace {
         }
         if let Some(previous_env) = env.propagated_from() {
             let patterns: Vec<_> = env.propagated_file_patterns().collect();
-            if let Some(env_state) =
-                self.db
-                    .get_target_propagated_state(&env.name, previous_env, &patterns)
-            {
+            if let Some(env_state) = self.db.get_target_propagated_state(
+                &env.name,
+                env.ignore_queue,
+                previous_env,
+                &patterns,
+            ) {
                 for (ident, state) in env_state.files.iter() {
                     let name = ident.name();
                     if patterns
@@ -264,9 +266,12 @@ impl Workspace {
         let mut new_env_state = DeployState::new(commit.clone());
         if let Some(previous_env) = env.propagated_from() {
             let patterns: Vec<_> = env.propagated_file_patterns().collect();
-            if let Some(env_state) =
-                database.get_target_propagated_state(&env.name, previous_env, &patterns)
-            {
+            if let Some(env_state) = database.get_target_propagated_state(
+                &env.name,
+                env.ignore_queue,
+                previous_env,
+                &patterns,
+            ) {
                 new_env_state.propagated_head = Some(env_state.head_commit.clone());
                 for (ident, prev_state) in env_state.files.iter() {
                     let name = ident.name();

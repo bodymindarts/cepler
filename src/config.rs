@@ -82,6 +82,8 @@ impl GatesConfig {
 pub struct EnvironmentConfig {
     #[serde(default)]
     pub name: String,
+    #[serde(default)]
+    pub ignore_queue: bool,
     #[serde(rename = "passed")]
     propagated_from: Option<String>,
     #[serde(rename = "propagated")]

@@ -121,6 +121,7 @@ impl Database {
     pub fn get_target_propagated_state(
         &self,
         env: &str,
+        env_ignore_queue: bool,
         propagated_from: &str,
         patterns: &[glob::Pattern],
     ) -> Option<&DeployState> {
@@ -136,6 +137,7 @@ impl Database {
             (Some(env), Some(from)) => {
                 if let Some(from_head) = env.current.propagated_head.as_ref() {
                     if self.ignore_queue
+                        || env_ignore_queue
                         || from_head == &from.current.head_commit
                         || from.propagation_queue.is_empty()
                     {
