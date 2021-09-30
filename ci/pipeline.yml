@@ -421,6 +421,7 @@ resources:
 - name: pipeline-image
   type: registry-image
   source:
+    tag: latest
     username: (( grab meta.docker_registry_user ))
     password: (( grab meta.docker_registry_password ))
     repository: (( grab meta.pipeline_image ))
