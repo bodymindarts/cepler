@@ -1,2 +1,1 @@
-## Improvements
-- support `ignore_queue` setting in environment specific config
+Empty - please add release notes here

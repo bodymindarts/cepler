@@ -1,3 +1,8 @@
+# [cepler release v0.7.3](https://github.com/bodymindarts/cepler/releases/tag/v0.7.3)
+
+## Improvements
+- support `ignore_queue` setting in environment specific config
+
 # [cepler release v0.7.2](https://github.com/bodymindarts/cepler/releases/tag/v0.7.2)
 
 ## Improvements
