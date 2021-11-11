@@ -307,8 +307,8 @@ impl DeployState {
             .files
             .iter()
             .filter_map(|(ident, state)| {
+                removed_files.remove(&ident);
                 if let Some(last_state) = other.files.get(ident) {
-                    removed_files.remove(&ident);
                     if state.file_hash.is_none() && last_state.file_hash.is_none() {
                         None
                     } else if state.dirty
@@ -328,7 +328,6 @@ impl DeployState {
                         None
                     }
                 } else {
-                    removed_files.remove(&ident);
                     Some(FileDiff {
                         ident: ident.clone(),
                         current_state: if state.file_hash.is_some() {
