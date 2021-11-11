@@ -69,3 +69,51 @@ teardown_file() {
   run cmd -g `fixture`/cepler-gates.yml check -e gated
   [ "$status" -eq 2 ]
 }
+
+@test "Correctly triggers with queue and supports rollback" {
+  cmd -g `fixture`/cepler-gates.yml record -e queued
+  before=$(git rev-parse HEAD)
+
+  cat <<EOF > `fixture`/cepler-gates.yml
+queued: HEAD
+propagated: ${before}
+EOF
+
+  cmd -g `fixture`/cepler-gates.yml check -e propagated
+  cmd -g `fixture`/cepler-gates.yml record -e propagated
+
+  echo "trigger1: {}" > `fixture`/queued.yml
+  git commit -am 'Update queued.yml'
+  cmd -g `fixture`/cepler-gates.yml record -e queued
+  trigger1=$(git rev-parse HEAD)
+  echo "trigger2: {}" > `fixture`/queued.yml
+  git commit -am 'Update queued.yml again'
+  cmd -g `fixture`/cepler-gates.yml record -e queued
+  trigger2=$(git rev-parse HEAD)
+
+  run cmd -g `fixture`/cepler-gates.yml check -e propagated
+  [ "$status" -eq 2 ]
+
+  cat <<EOF > `fixture`/cepler-gates.yml
+queued: HEAD
+propagated: ${trigger2}
+EOF
+
+  cmd -g `fixture`/cepler-gates.yml check -e propagated | grep "${trigger1}"
+  cmd -g `fixture`/cepler-gates.yml prepare -e propagated
+  cmd -g `fixture`/cepler-gates.yml record -e propagated
+
+  cmd -g `fixture`/cepler-gates.yml check -e propagated | grep "${trigger2}"
+  cmd -g `fixture`/cepler-gates.yml prepare -e propagated
+  cmd -g `fixture`/cepler-gates.yml record -e propagated
+
+  run cmd -g `fixture`/cepler-gates.yml check -e propagated
+  [ "$status" -eq 2 ]
+
+  cat <<EOF > `fixture`/cepler-gates.yml
+queued: HEAD
+propagated: ${trigger1}
+EOF
+
+  cmd -g `fixture`/cepler-gates.yml check -e propagated
+}

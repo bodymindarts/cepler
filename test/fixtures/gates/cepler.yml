@@ -8,3 +8,10 @@ environments:
   missing:
     latest:
     - test/fixtures/gates/missing.yml
+  queued:
+    latest:
+    - test/fixtures/gates/queued.yml
+  propagated:
+    passed: queued
+    propagated:
+    - test/fixtures/gates/queued.yml
