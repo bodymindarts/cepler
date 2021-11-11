@@ -187,15 +187,13 @@ impl Workspace {
         recording: bool,
     ) -> Result<DeployState> {
         let current_commit = repo.gate_commit_hash();
-        let database = Database::open_env(
+        let database = self.db.open_env_from_commit(
             &self.path_to_config,
             self.ignore_queue,
             &self.scope,
-            &env.name,
-            env.propagated_from(),
+            env,
             current_commit.clone(),
             repo,
-            self.db.get_environment(&env.name),
         )?;
 
         let mut best_state = self.construct_state_for_commit(
@@ -239,15 +237,13 @@ impl Workspace {
         } else {
             return Ok(None);
         };
-        let database = Database::open_env(
+        let database = self.db.open_env_from_commit(
             &self.path_to_config,
             self.ignore_queue,
             &config.scope,
-            &env.name,
-            env.propagated_from(),
+            env,
             commit.clone(),
             repo,
-            self.db.get_environment(&env.name),
         )?;
         let new_state = self.construct_state_for_commit(repo, commit, env, &database, recording)?;
         if last_state.diff(&new_state).is_empty() {

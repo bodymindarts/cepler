@@ -1,4 +1,4 @@
-use super::repo::*;
+use super::{config::*, repo::*};
 use anyhow::*;
 use glob::*;
 use serde::{Deserialize, Serialize};
@@ -56,24 +56,23 @@ impl Database {
         })
     }
 
-    pub fn open_env(
+    pub fn open_env_from_commit(
+        &self,
         path_to_config: &str,
         ignore_queue: bool,
         scope: &str,
-        env_name: &str,
-        propagated_name: Option<&String>,
+        env_config: &EnvironmentConfig,
         commit: CommitHash,
         repo: &Repo,
-        env_state: Option<&EnvironmentState>,
     ) -> Result<Self> {
         let dir = Self::state_dir_from_config(scope, path_to_config);
         let mut state = DbState::default();
-        if let Some(env_state) = env_state {
+        if let Some(env_state) = self.state.environments.get(&env_config.name) {
             state
                 .environments
-                .insert(env_name.to_string(), env_state.clone());
+                .insert(env_config.name.to_string(), env_state.clone());
         }
-        if let Some(last_env) = propagated_name {
+        if let Some(last_env) = env_config.propagated_from() {
             let env_file = format!("{}/{}.state", dir, last_env);
             let env_path = Path::new(&env_file);
             if let Some(env_state) = repo.get_file_content(commit, env_path, |bytes| {
@@ -182,10 +181,6 @@ impl Database {
 
     pub fn get_current_state(&self, env: &str) -> Option<&DeployState> {
         self.state.environments.get(env).map(|env| &env.current)
-    }
-
-    pub fn get_environment(&self, env: &str) -> Option<&EnvironmentState> {
-        self.state.environments.get(env)
     }
 
     fn persist(&self) -> Result<()> {
