@@ -1,3 +1,9 @@
+# [cepler release v0.7.4](https://github.com/bodymindarts/cepler/releases/tag/v0.7.4)
+
+## Improvements
+- Update to rust edition 2021
+- Always read target environment state from disk - fixes issue with queueing when using gates
+
 # [cepler release v0.7.3](https://github.com/bodymindarts/cepler/releases/tag/v0.7.3)
 
 ## Improvements
