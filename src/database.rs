@@ -64,16 +64,14 @@ impl Database {
         propagated_name: Option<&String>,
         commit: CommitHash,
         repo: &Repo,
+        env_state: Option<&EnvironmentState>,
     ) -> Result<Self> {
         let dir = Self::state_dir_from_config(scope, path_to_config);
-        let env_file = format!("{}/{}.state", dir, env_name);
-        let env_path = Path::new(&env_file);
-        let env_state = repo.get_file_content(commit.clone(), env_path, |bytes| {
-            EnvironmentState::from_reader(bytes)
-        })?;
         let mut state = DbState::default();
         if let Some(env_state) = env_state {
-            state.environments.insert(env_name.to_string(), env_state);
+            state
+                .environments
+                .insert(env_name.to_string(), env_state.clone());
         }
         if let Some(last_env) = propagated_name {
             let env_file = format!("{}/{}.state", dir, last_env);
@@ -186,6 +184,10 @@ impl Database {
         self.state.environments.get(env).map(|env| &env.current)
     }
 
+    pub fn get_environment(&self, env: &str) -> Option<&EnvironmentState> {
+        self.state.environments.get(env)
+    }
+
     fn persist(&self) -> Result<()> {
         use std::fs;
         use std::io::Write;
@@ -241,7 +243,7 @@ impl DbState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvironmentState {
     current: DeployState,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -258,7 +260,7 @@ impl EnvironmentState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeployState {
     pub head_commit: CommitHash,
     #[serde(skip_serializing_if = "Option::is_none")]

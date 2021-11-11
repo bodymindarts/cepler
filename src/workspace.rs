@@ -195,6 +195,7 @@ impl Workspace {
             env.propagated_from(),
             current_commit.clone(),
             repo,
+            self.db.get_environment(&env.name),
         )?;
 
         let mut best_state = self.construct_state_for_commit(
@@ -246,6 +247,7 @@ impl Workspace {
             env.propagated_from(),
             commit.clone(),
             repo,
+            self.db.get_environment(&env.name),
         )?;
         let new_state = self.construct_state_for_commit(repo, commit, env, &database, recording)?;
         if last_state.diff(&new_state).is_empty() {
