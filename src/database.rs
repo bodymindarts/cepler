@@ -100,6 +100,7 @@ impl Database {
         if let Some(state) = self.state.environments.get_mut(&name) {
             std::mem::swap(&mut state.current, &mut env);
             state.propagation_queue.push_front(env);
+            state.propagated_from = propagated_from;
         } else {
             self.state.environments.insert(
                 name.clone(),
