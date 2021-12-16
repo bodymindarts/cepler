@@ -1,3 +1,9 @@
+# [cepler release v0.7.6](https://github.com/bodymindarts/cepler/releases/tag/v0.7.6)
+
+## Improvement
+
+- Latest concourse version wants to check even though the resource is never used to push
+
 # [cepler release v0.7.5](https://github.com/bodymindarts/cepler/releases/tag/v0.7.5)
 
 ## Bug fix
