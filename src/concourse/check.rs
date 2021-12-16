@@ -64,15 +64,19 @@ pub fn exec() -> Result<()> {
 
     let config = Config::from_file(&source.config)?;
     let ws = Workspace::new(&config.scope, source.config.clone(), source.ignore_queue)?;
-    let environment = source
-        .environment
-        .ok_or_else(|| anyhow!("Environment not specified in source"))?;
+    let mut res = Vec::new();
+    let environment = if let Some(environment) = source.environment {
+        environment
+    } else {
+        eprintln!("No environment specified - ignoring");
+        println!("{}", serde_json::to_string(&res)?);
+        return Ok(());
+    };
     let env = config.environments.get(&environment).context(format!(
         "Environment '{}' not found in config '{}'",
         environment, source.config
     ))?;
     eprintln!("Checking equivalence with last deployed state...");
-    let mut res = Vec::new();
     let gate = get_gate(
         source.gates_file.as_ref(),
         source.gates_branch.as_ref(),
