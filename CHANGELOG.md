@@ -1,3 +1,9 @@
+# [cepler release v0.7.7](https://github.com/bodymindarts/cepler/releases/tag/v0.7.7)
+
+## Improvement
+
+- reproduce last state when there is nothing to prepare in ci_in
+
 # [cepler release v0.7.6](https://github.com/bodymindarts/cepler/releases/tag/v0.7.6)
 
 ## Improvement
