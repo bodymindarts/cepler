@@ -72,7 +72,7 @@ impl Workspace {
         Ok(Some((new_env_state.head_commit.inner(), diffs)))
     }
 
-    pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<()> {
+    pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<String> {
         let repo = Repo::open(None)?;
         if let Some(last_state) = self.db.get_current_state(&env.name) {
             if force_clean {
@@ -81,11 +81,12 @@ impl Workspace {
             for (ident, state) in last_state.files.iter() {
                 repo.checkout_file_from(&ident.name(), &state.from_commit)?;
             }
-            Ok(())
+            Ok(last_state.head_commit.clone().inner())
         } else {
             Err(anyhow!("No state recorded for {}", env.name))
         }
     }
+
     pub fn prepare(
         &self,
         env: &EnvironmentConfig,

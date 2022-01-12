@@ -56,13 +56,20 @@ pub fn exec(destination: &str) -> Result<()> {
             std::process::exit(1);
         }
         None => {
-            eprintln!("Nothing new to deploy... providing an empty dir");
-            return empty_repo(version);
+            eprintln!("Nothing new to deploy... reproducing last state");
+            let reproduced = ws.reproduce(env, true)?;
+            if &reproduced != wanted_trigger {
+                eprintln!("Reproduced state is out of sync - providing empty dir");
+                return empty_repo(version);
+            }
+            (reproduced, Vec::new())
         }
-        Some(ret) => ret,
+        Some(ret) => {
+            eprintln!("Preparing the workspace");
+            ws.prepare(env, gate, true)?;
+            ret
+        }
     };
-    eprintln!("Preparing the workspace");
-    ws.prepare(env, gate, true)?;
 
     std::fs::write(".git/cepler_environment", &environment)
         .context("Couldn't create file '.git/cepler_environment'")?;
