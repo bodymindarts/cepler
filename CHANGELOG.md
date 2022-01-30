@@ -1,3 +1,9 @@
+# [cepler release v0.7.8](https://github.com/bodymindarts/cepler/releases/tag/v0.7.8)
+
+## improvements
+
+- cepler commits should follow conventional commit style `ci(cepler): (...)`
+
 # [cepler release v0.7.7](https://github.com/bodymindarts/cepler/releases/tag/v0.7.7)
 
 ## Improvement
