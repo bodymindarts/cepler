@@ -1,5 +1,5 @@
 use super::config::{default_scope, MATCH_OPTIONS};
-use anyhow::*;
+use anyhow::{Context, Result};
 use git2::{
     build::CheckoutBuilder, BranchType, Commit, Cred, MergeOptions, Object, ObjectType, Oid,
     PushOptions, RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode,

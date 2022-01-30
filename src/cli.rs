@@ -5,7 +5,7 @@ use super::{
     repo::*,
     workspace::Workspace,
 };
-use anyhow::*;
+use anyhow::{anyhow, Context, Result};
 use clap::{clap_app, crate_version, App, ArgMatches};
 use std::path::Path;
 
