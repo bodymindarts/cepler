@@ -20,7 +20,7 @@ pub fn exec(origin: &str) -> Result<()> {
         dir: origin.to_string(),
     };
     let config = Config::from_file(&source.config)?;
-    let environment = out_params.environment.ok_or(()).or({
+    let environment = out_params.environment.ok_or(()).or_else(|_| {
         source
             .environment
             .ok_or_else(|| anyhow!("Environment not specified in source"))

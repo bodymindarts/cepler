@@ -99,10 +99,10 @@ impl EnvironmentConfig {
         self.propagated_from.as_ref()
     }
 
-    pub fn propagated_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> {
+    pub fn propagated_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> + '_ {
         self.propagated_files
-            .to_vec()
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
     }
 
@@ -110,15 +110,14 @@ impl EnvironmentConfig {
         let files: Vec<_> = self.propagated_files.to_vec();
         files
             .into_iter()
-            .map(|file| glob(&file).expect("Couldn't resolve glob"))
-            .flatten()
+            .flat_map(|file| glob(&file).expect("Couldn't resolve glob"))
             .map(|res| res.expect("Couldn't list file"))
     }
 
-    pub fn head_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> {
+    pub fn head_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> + '_ {
         self.head_files
-            .to_vec()
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
     }
 }
