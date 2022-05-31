@@ -1,0 +1,18 @@
+#@data/values
+---
+github_owner: bodymindarts
+github_repo: cepler
+github_private_key: ((github-ssh-key.private_key))
+github_access_token: ((github-access-token.token))
+git_uri: git@github.com:bodymindarts/cepler.git
+git_branch: main
+git_version_branch: version
+
+docker_registry: cepler
+docker_registry_user: ((docker-creds.username))
+docker_registry_password: ((docker-creds.password))
+osxcross_docker_username: ((osxcross-image.username))
+osxcross_docker_password: ((osxcross-image.password))
+osxcross_repository: ((osxcross-image.repository))
+
+crates_api_token: ((crates-api-token.token))

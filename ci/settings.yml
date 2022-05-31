@@ -1,20 +1,19 @@
-meta:
-  github_owner: bodymindarts
-  github_repo: cepler
-  github_private_key: ((github-ssh-key.private_key))
-  github_access_token: ((github-access-token.token))
-  git_uri: git@github.com:bodymindarts/cepler.git
-  git_branch: main
+github_owner: bodymindarts
+ github_repo: cepler
+ github_private_key: ((github-ssh-key.private_key))
+ github_access_token: ((github-access-token.token))
+ git_uri: git@github.com:bodymindarts/cepler.git
+ git_branch: main
 
-  docker_registry: cepler
-  docker_registry_user: ((docker-creds.username))
-  docker_registry_password: ((docker-creds.password))
-  osxcross_username: ((osxcross-image.username))
-  osxcross_password: ((osxcross-image.password))
-  osxcross_repository: ((osxcross-image.repository))
+ docker_registry: cepler
+ docker_registry_user: ((docker-creds.username))
+ docker_registry_password: ((docker-creds.password))
+ osxcross_username: ((osxcross-image.username))
+ osxcross_password: ((osxcross-image.password))
+ osxcross_repository: ((osxcross-image.repository))
 
-  crates_api_token: ((crates-api-token.token))
+ crates_api_token: ((crates-api-token.token))
 
-  ci_artifacts_bucket:
-    name: ((ci-artifacts-creds.bucket_name))
-    creds: ((ci-artifacts-creds.json_key))
+ ci_artifacts_bucket:
+   name: ((ci-artifacts-creds.bucket_name))
+   creds: ((ci-artifacts-creds.json_key))

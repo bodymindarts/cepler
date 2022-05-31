@@ -1,33 +1,20 @@
-meta:
-  github_owner: (( param "Please specify the org the git repo is in" ))
-  github_repo: (( param "Please specify the name of the repository" ))
-  github_private_key: (( param "Please specify the private key fot github auth" ))
-  github_access_token: (( param "Please specify access token for creating releases" ))
-  git_uri: (( param "Please specify the uri to the git repo" ))
-  git_branch: (( param "Please specify the branch to checkout" ))
+#@ load("@ytt:data", "data")
 
-  docker_registry_user: (( param "Please specify docker_registry_user" ))
-  docker_registry_password: (( param "Please specify docker_registry_password" ))
-  docker_registry: (( param "Please specify the name of the docker_registry" ))
-  osxcross_username: (( param "Please specify osxcross_username" ))
-  osxcross_password: (( param "Please specify osxcross_password" ))
-  osxcross_repository: (( param "Please specify osxcross_repository" ))
+#@ def concourse_resource_image():
+#@   return data.values.docker_registry + "/cepler-concourse-resource"
+#@ end
 
-  pipeline_image: (( concat meta.docker_registry "/cepler-pipeline" ))
-  concourse_resource_image: (( concat meta.docker_registry "/cepler-concourse-resource" ))
+#@ def pipeline_image():
+#@   return data.values.docker_registry + "/cepler-pipeline"
+#@ end
 
-  crates_api_token: (( param "Please specify the crates.io api token" ))
-
-  ci_artifacts_bucket:
-    name: (( param "Please specify the name of the ci artifacts bucket" ))
-    creds: (( param "Please specify the json key to authenticate to ci artifacts buckets" ))
-
-  task_image_config:
-    type: registry-image
-    source:
-      username: (( grab meta.docker_registry_user ))
-      password: (( grab meta.docker_registry_password ))
-      repository: (( grab meta.pipeline_image ))
+#@ def task_image_config():
+type: registry-image
+source:
+  username: #@ data.values.docker_registry_user
+  password: #@ data.values.docker_registry_password
+  repository: #@ pipeline_image()
+#@ end
 
 groups:
 - name: release
@@ -82,7 +69,7 @@ jobs:
     - do:
       - task: set-dev-version
         config:
-          image_resource: (( grab meta.task_image_config ))
+          image_resource: #@ task_image_config()
           platform: linux
           inputs:
           - name: version
@@ -93,7 +80,7 @@ jobs:
           run:
             path: pipeline-tasks/ci/tasks/set-dev-version.sh
           params:
-            BRANCH: (( grab meta.git_branch ))
+            BRANCH: #@ data.values.git_branch
       - put: repo
         params:
           repository: repo
@@ -111,7 +98,7 @@ jobs:
     - do:
       - task: set-dev-version
         config:
-          image_resource: (( grab meta.task_image_config ))
+          image_resource: #@ task_image_config()
           platform: linux
           inputs:
           - name: version
@@ -122,7 +109,7 @@ jobs:
           run:
             path: pipeline-tasks/ci/tasks/set-dev-version.sh
           params:
-            BRANCH: (( grab meta.git_branch ))
+            BRANCH: #@ data.values.git_branch
       - put: repo
         params:
           repository: repo
@@ -137,7 +124,7 @@ jobs:
     - task: test-unit
       config:
         platform: linux
-        image_resource: (( grab meta.task_image_config ))
+        image_resource: #@ task_image_config()
         inputs:
         - name: pipeline-tasks
         - name: repo
@@ -180,7 +167,7 @@ jobs:
     - task: test-integration
       config:
         platform: linux
-        image_resource: (( grab meta.task_image_config ))
+        image_resource: #@ task_image_config()
         inputs:
         - name: pipeline-tasks
         - name: repo
@@ -211,7 +198,7 @@ jobs:
     - { get: pipeline-tasks }
   - task: prepare
     config:
-      image_resource: (( grab meta.task_image_config ))
+      image_resource: #@ task_image_config()
       platform: linux
       inputs:
       - name: version
@@ -220,7 +207,7 @@ jobs:
       outputs:
       - name: prepared-repo
       params:
-        BRANCH: (( grab meta.git_branch ))
+        BRANCH: #@ data.values.git_branch
       run:
         path: pipeline-tasks/ci/tasks/prepare-repo.sh
   - in_parallel:
@@ -238,9 +225,9 @@ jobs:
         image_resource:
           type: registry-image
           source:
-            username: (( grab meta.osxcross_username ))
-            password: (( grab meta.osxcross_password ))
-            repository: (( grab meta.osxcross_repository ))
+            username: #@ data.values.osxcross_docker_username
+            password: #@ data.values.osxcross_docker_password
+            repository: #@ data.values.osxcross_repository
         inputs:
         - name: version
         - name: pipeline-tasks
@@ -282,7 +269,7 @@ jobs:
     - do:
       - task: github-release
         config:
-          image_resource: (( grab meta.task_image_config ))
+          image_resource: #@ task_image_config()
           platform: linux
           inputs:
           - name: x86_64-apple-darwin
@@ -293,7 +280,7 @@ jobs:
           outputs:
           - name: gh-release
           params:
-            BRANCH: (( grab meta.git_branch ))
+            BRANCH: #@ data.values.git_branch
           run:
             path: pipeline-tasks/ci/tasks/github-release.sh
       - put: github-release
@@ -336,7 +323,7 @@ jobs:
     - do:
       - task: set-dev-version
         config:
-          image_resource: (( grab meta.task_image_config ))
+          image_resource: #@ task_image_config()
           platform: linux
           inputs:
           - name: version
@@ -347,7 +334,7 @@ jobs:
           run:
             path: pipeline-tasks/ci/tasks/set-dev-version.sh
           params:
-            BRANCH: (( grab meta.git_branch ))
+            BRANCH: #@ data.values.git_branch
       - put: repo
         params:
           repository: repo
@@ -362,14 +349,14 @@ jobs:
     - { get: pipeline-tasks }
   - task: publish-to-crates
     config:
-      image_resource: (( grab meta.task_image_config ))
+      image_resource: #@ task_image_config()
       platform: linux
       inputs:
       - name: version
       - name: pipeline-tasks
       - name: repo
       params:
-        CRATES_API_TOKEN: (( grab meta.crates_api_token ))
+        CRATES_API_TOKEN: #@ data.values.crates_api_token
       caches:
       - path: cargo-home
       - path: cargo-target-dir
@@ -377,7 +364,7 @@ jobs:
         path: pipeline-tasks/ci/tasks/publish-to-crates.sh
   - task: verify-publish
     config:
-      image_resource: (( grab meta.task_image_config ))
+      image_resource: #@ task_image_config()
       platform: linux
       inputs:
       - name: version
@@ -390,62 +377,62 @@ resources:
   type: git
   source:
     ignore_paths: ["ci/*[^md]"]
-    uri: (( grab meta.git_uri ))
-    branch: (( grab meta.git_branch ))
-    private_key: (( grab meta.github_private_key ))
+    uri: #@ data.values.git_uri
+    branch: #@ data.values.git_branch
+    private_key: #@ data.values.github_private_key
 
 - name: concourse-resource-image
   type: registry-image
   source:
     tag: latest
-    username: (( grab meta.docker_registry_user ))
-    password: (( grab meta.docker_registry_password ))
-    repository: (( grab meta.concourse_resource_image ))
+    username: #@ data.values.docker_registry_user
+    password: #@ data.values.docker_registry_password
+    repository: #@ concourse_resource_image()
 
 - name: concourse-resource-image-edge
   type: registry-image
   source:
     tag: edge
-    username: (( grab meta.docker_registry_user ))
-    password: (( grab meta.docker_registry_password ))
-    repository: (( grab meta.concourse_resource_image ))
+    username: #@ data.values.docker_registry_user
+    password: #@ data.values.docker_registry_password
+    repository: #@ concourse_resource_image()
 
 - name: pipeline-tasks
   type: git
   source:
-    uri: (( grab meta.git_uri ))
-    branch: (( grab meta.git_branch ))
+    uri: #@ data.values.git_uri
+    branch: #@ data.values.git_branch
     paths: [ci/tasks/*, Makefile]
-    private_key: (( grab meta.github_private_key ))
+    private_key: #@ data.values.github_private_key
 
 - name: pipeline-image
   type: registry-image
   source:
     tag: latest
-    username: (( grab meta.docker_registry_user ))
-    password: (( grab meta.docker_registry_password ))
-    repository: (( grab meta.pipeline_image ))
+    username: #@ data.values.docker_registry_user
+    password: #@ data.values.docker_registry_password
+    repository: #@ pipeline_image()
 
 - name: pipeline-image-def
   type: git
   source:
-    uri: (( grab meta.git_uri ))
-    branch: (( grab meta.git_branch ))
+    uri: #@ data.values.git_uri
+    branch: #@ data.values.git_branch
     paths: [ci/image/Dockerfile]
-    private_key: (( grab meta.github_private_key ))
+    private_key: #@ data.values.github_private_key
 
 - name: version
   type: semver
   source:
-    initial_version: 0.4.8-rc.1
-    driver: gcs
-    bucket: (( grab meta.ci_artifacts_bucket.name ))
-    key: cepler/cepler-version
-    json_key: (( grab meta.ci_artifacts_bucket.creds ))
+    driver: git
+    file: version
+    uri: #@ data.values.git_uri
+    branch: #@ data.values.git_version_branch
+    private_key: #@ data.values.github_private_key
 
 - name: github-release
   type: github-release
   source:
-    user:         (( grab meta.github_owner ))
-    repository:   (( grab meta.github_repo ))
-    access_token: (( grab meta.github_access_token ))
+    user:         #@ data.values.github_owner
+    repository:   #@ data.values.github_repo
+    access_token: #@ data.values.github_access_token
