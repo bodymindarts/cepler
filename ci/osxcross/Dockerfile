@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     libmpc-dev \
     libmpfr-dev \
-    libgmp-dev
+    libgmp-dev \
+    protobuf-compiler
 
 RUN rustup target add x86_64-apple-darwin
 

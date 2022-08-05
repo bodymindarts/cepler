@@ -2,5 +2,5 @@
 
 git clone https://github.com/tpoechtrager/osxcross
 cd osxcross
-mv ../MacOSX10.15.sdk.tar.xz tarballs/
+mv ../MacOSX12.3.sdk.tar.bz2 tarballs/
 UNATTENDED=yes ./build.sh
