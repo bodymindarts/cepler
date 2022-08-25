@@ -1,7 +1,7 @@
 [package]
 name = "cepler"
 version = "0.7.10-dev"
-authors = ["Justin Carter <justin@misthos.io>"]
+authors = ["Justin Carter <justin@galoy.io>"]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/bodymindarts/cepler"
