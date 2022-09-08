@@ -30,13 +30,13 @@ struct Source {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Version {
     trigger: String,
-    version: Option<u32>,
+    version: Option<String>,
 }
 impl From<StateId> for Version {
     fn from(id: StateId) -> Self {
         Self {
             trigger: id.head_commit,
-            version: Some(id.version),
+            version: Some(id.version.to_string()),
         }
     }
 }
