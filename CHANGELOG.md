@@ -1,3 +1,9 @@
+# [cepler release v0.7.10](https://github.com/bodymindarts/cepler/releases/tag/v0.7.10)
+
+## Fix
+- persist `version` field in state to enable rollback use case
+- should also fix re-recording the same state
+
 # [cepler release v0.7.9](https://github.com/bodymindarts/cepler/releases/tag/v0.7.9)
 
 ## Misc
