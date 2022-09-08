@@ -93,27 +93,32 @@ impl Database {
         name: String,
         propagated_from: Option<String>,
         mut env: DeployState,
-    ) -> Result<String> {
+    ) -> Result<(u32, String)> {
         let any_dirty = env.files.values().any(|f| f.dirty);
         env.any_dirty = any_dirty;
         let ret = format!("{}/{}.state", self.state_dir, &name);
-        if let Some(state) = self.state.environments.get_mut(&name) {
+        let version = if let Some(state) = self.state.environments.get_mut(&name) {
             std::mem::swap(&mut state.current, &mut env);
             state.propagation_queue.push_front(env);
             state.propagated_from = propagated_from;
+            state.version += 1;
+            state.version
         } else {
+            let version = 1;
             self.state.environments.insert(
                 name.clone(),
                 EnvironmentState {
+                    version,
                     current: env,
                     propagated_from,
                     propagation_queue: VecDeque::new(),
                 },
             );
-        }
+            version
+        };
         self.state.prune_propagation_queue(name);
         self.persist()?;
-        Ok(ret)
+        Ok((version, ret))
     }
 
     pub fn get_target_propagated_state(
@@ -180,8 +185,11 @@ impl Database {
         }
     }
 
-    pub fn get_current_state(&self, env: &str) -> Option<&DeployState> {
-        self.state.environments.get(env).map(|env| &env.current)
+    pub fn get_current_state(&self, env: &str) -> Option<(u32, &DeployState)> {
+        self.state
+            .environments
+            .get(env)
+            .map(|env| (env.version, &env.current))
     }
 
     fn persist(&self) -> Result<()> {
@@ -241,6 +249,8 @@ impl DbState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvironmentState {
+    #[serde(default)]
+    version: u32,
     current: DeployState,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub propagated_from: Option<String>,

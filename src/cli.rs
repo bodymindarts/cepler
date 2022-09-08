@@ -154,8 +154,11 @@ fn check(
             println!("Nothing new to deploy");
             std::process::exit(2);
         }
-        Some((commit, _)) => {
-            println!("Found new state to deploy - trigger commit {}", commit);
+        Some((state_id, _)) => {
+            println!(
+                "Found new state to deploy - trigger commit {}",
+                state_id.head_commit
+            );
         }
     }
     Ok(())
@@ -260,7 +263,7 @@ fn record(
 fn latest(matches: &ArgMatches, (config, config_file): (Config, String)) -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let db = Database::open(&config.scope, &config_file, false)?;
-    if let Some(env) = db.get_current_state(env) {
+    if let Some((_, env)) = db.get_current_state(env) {
         println!("{}", env.head_commit.clone().inner());
     } else {
         eprintln!("Environment '{}' not deployed!", env);

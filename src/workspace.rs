@@ -9,6 +9,11 @@ pub struct Workspace {
     db: Database,
 }
 
+pub struct StateId {
+    pub head_commit: String,
+    pub version: u32,
+}
+
 impl Workspace {
     pub fn new(scope: &str, path_to_config: String, ignore_queue: bool) -> Result<Self> {
         Ok(Self {
@@ -33,7 +38,7 @@ impl Workspace {
         &self,
         env: &EnvironmentConfig,
         gate: Option<String>,
-    ) -> Result<Option<(String, Vec<FileDiff>)>> {
+    ) -> Result<Option<(StateId, Vec<FileDiff>)>> {
         let repo = Repo::open(gate)?;
         if let Some(previous_env) = env.propagated_from() {
             self.db.get_current_state(previous_env).context(format!(
@@ -42,22 +47,25 @@ impl Workspace {
             ))?;
         }
         let new_env_state = self.construct_env_state(&repo, env, false)?;
-        let diffs = if let Some(last) = self.db.get_current_state(&env.name) {
+        let (version, diffs) = if let Some((version, last)) = self.db.get_current_state(&env.name) {
             let diffs = new_env_state.diff(last);
             if diffs.is_empty() {
                 return Ok(None);
             }
-            diffs
+            (version + 1, diffs)
         } else {
-            new_env_state
-                .files
-                .iter()
-                .map(|(ident, state)| FileDiff {
-                    ident: ident.clone(),
-                    current_state: Some(state.clone()),
-                    added: true,
-                })
-                .collect()
+            (
+                1,
+                new_env_state
+                    .files
+                    .iter()
+                    .map(|(ident, state)| FileDiff {
+                        ident: ident.clone(),
+                        current_state: Some(state.clone()),
+                        added: true,
+                    })
+                    .collect(),
+            )
         };
         for diff in diffs.iter() {
             let name = diff.ident.name();
@@ -69,19 +77,28 @@ impl Workspace {
                 eprintln!("File {} was removed", name)
             }
         }
-        Ok(Some((new_env_state.head_commit.inner(), diffs)))
+        Ok(Some((
+            StateId {
+                version,
+                head_commit: new_env_state.head_commit.inner(),
+            },
+            diffs,
+        )))
     }
 
-    pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<String> {
+    pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<StateId> {
         let repo = Repo::open(None)?;
-        if let Some(last_state) = self.db.get_current_state(&env.name) {
+        if let Some((version, last_state)) = self.db.get_current_state(&env.name) {
             if force_clean {
                 repo.checkout_gate(&[], &self.ignore_list(), true)?;
             }
             for (ident, state) in last_state.files.iter() {
                 repo.checkout_file_from(&ident.name(), &state.from_commit)?;
             }
-            Ok(last_state.head_commit.clone().inner())
+            Ok(StateId {
+                version,
+                head_commit: last_state.head_commit.clone().inner(),
+            })
         } else {
             Err(anyhow!("No state recorded for {}", env.name))
         }
@@ -142,12 +159,12 @@ impl Workspace {
         commit: bool,
         reset: bool,
         git_config: Option<GitConfig>,
-    ) -> Result<(String, Vec<FileDiff>)> {
+    ) -> Result<(StateId, Vec<FileDiff>)> {
         eprintln!("Recording current state");
         let repo = Repo::open(gate)?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
         let head_commit = new_env_state.head_commit.clone().inner();
-        let diffs = if let Some(last_state) = self.db.get_current_state(&env.name) {
+        let diffs = if let Some((_, last_state)) = self.db.get_current_state(&env.name) {
             new_env_state.diff(last_state)
         } else {
             new_env_state
@@ -160,7 +177,7 @@ impl Workspace {
                 })
                 .collect()
         };
-        let state_file = self.db.set_current_environment_state(
+        let (version, state_file) = self.db.set_current_environment_state(
             env.name.clone(),
             env.propagated_from().cloned(),
             new_env_state,
@@ -177,7 +194,13 @@ impl Workspace {
             eprintln!("Pushing to remote");
             repo.push(config)?;
         }
-        Ok((head_commit, diffs))
+        Ok((
+            StateId {
+                head_commit,
+                version,
+            },
+            diffs,
+        ))
     }
 
     #[allow(clippy::redundant_closure)]

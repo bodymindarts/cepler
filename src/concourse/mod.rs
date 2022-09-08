@@ -1,4 +1,4 @@
-use crate::{config::*, repo::*};
+use crate::{config::*, repo::*, workspace::StateId};
 use anyhow::*;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -30,6 +30,15 @@ struct Source {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Version {
     trigger: String,
+    version: Option<u32>,
+}
+impl From<StateId> for Version {
+    fn from(id: StateId) -> Self {
+        Self {
+            trigger: id.head_commit,
+            version: Some(id.version),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

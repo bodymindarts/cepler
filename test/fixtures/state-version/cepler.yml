@@ -1,0 +1,4 @@
+environments:
+  testflight:
+    latest:
+    - test/fixtures/state-version/file.yml

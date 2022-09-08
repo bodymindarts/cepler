@@ -84,18 +84,18 @@ pub fn exec() -> Result<()> {
         &repo,
     )?;
     match (version, ws.check(env, gate)?) {
-        (None, Some((trigger, _))) => {
+        (None, Some((state_id, _))) => {
             eprintln!("Found new state to deploy");
-            res.push(Version { trigger })
+            res.push(Version::from(state_id))
         }
-        (Some(last), Some((trigger, _))) if last.trigger != trigger => {
+        (Some(last), Some((state_id, _))) if last.trigger != state_id.head_commit => {
             eprintln!("Found new state to deploy");
             res.push(last);
-            res.push(Version { trigger })
+            res.push(Version::from(state_id))
         }
         (Some(last), ret) => {
             match ret {
-                Some((trigger, _)) if last.trigger == trigger => {
+                Some((state_id, _)) if last.trigger == state_id.head_commit => {
                     eprintln!("Last trigger is still up to date")
                 }
                 _ => eprintln!("Nothing new to deploy"),

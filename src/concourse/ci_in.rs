@@ -50,19 +50,19 @@ pub fn exec(destination: &str) -> Result<()> {
         &environment,
         &repo,
     )?;
-    let (trigger, diff) = match ws.check(env, gate.clone())? {
-        Some((trigger, _)) if &trigger != wanted_trigger => {
+    let (state_id, diff) = match ws.check(env, gate.clone())? {
+        Some((state_id, _)) if &state_id.head_commit != wanted_trigger => {
             eprintln!("Trigger is out of sync.");
             std::process::exit(1);
         }
         None => {
             eprintln!("Nothing new to deploy... reproducing last state");
-            let reproduced = ws.reproduce(env, true)?;
-            if &reproduced != wanted_trigger {
+            let state_id = ws.reproduce(env, true)?;
+            if &state_id.head_commit != wanted_trigger {
                 eprintln!("Reproduced state is out of sync - providing empty dir");
                 return empty_repo(version);
             }
-            (reproduced, Vec::new())
+            (state_id, Vec::new())
         }
         Some(ret) => {
             eprintln!("Preparing the workspace");
@@ -73,7 +73,7 @@ pub fn exec(destination: &str) -> Result<()> {
 
     std::fs::write(".git/cepler_environment", &environment)
         .context("Couldn't create file '.git/cepler_environment'")?;
-    std::fs::write(".git/cepler_trigger", &trigger)
+    std::fs::write(".git/cepler_trigger", &state_id.head_commit)
         .context("Couldn't create file '.git/cepler_trigger'")?;
 
     println!(
