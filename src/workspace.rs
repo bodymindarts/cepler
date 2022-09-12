@@ -335,7 +335,7 @@ impl Workspace {
                     }
                 };
                 let file_name = path.to_str().unwrap().to_string();
-                let ident = FileIdent::new(file_name.clone(), None);
+                let ident = FileIdent::new(file_name, None);
                 if let Some(ident) = inserted_files.remove(&ident.name()) {
                     new_env_state.files.remove(&ident);
                 }
