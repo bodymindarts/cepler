@@ -1,5 +1,6 @@
 use super::{config::*, database::*, repo::*};
 use anyhow::*;
+use std::collections::HashMap;
 use std::path::Path;
 
 pub struct Workspace {
@@ -256,16 +257,17 @@ impl Workspace {
         recording: bool,
     ) -> Result<DeployState> {
         let mut new_env_state = DeployState::new(commit.clone());
+        let mut inserted_files = HashMap::new();
         if let Some(previous_env) = env.propagated_from() {
             let patterns: Vec<_> = env.propagated_file_patterns().collect();
-            if let Some(env_state) = database.get_target_propagated_state(
+            if let Some(passed_state) = database.get_target_propagated_state(
                 &env.name,
                 env.ignore_queue,
                 previous_env,
                 &patterns,
             ) {
-                new_env_state.propagated_head = Some(env_state.head_commit.clone());
-                for (ident, prev_state) in env_state.files.iter() {
+                new_env_state.propagated_head = Some(passed_state.head_commit.clone());
+                for (ident, prev_state) in passed_state.files.iter() {
                     let name = ident.name();
                     if let Some(last_hash) = prev_state.file_hash.as_ref() {
                         if patterns
@@ -287,10 +289,9 @@ impl Workspace {
                                 from_commit: prev_state.from_commit.clone(),
                                 message: prev_state.message.clone(),
                             };
-                            new_env_state.files.insert(
-                                FileIdent::new(name.clone(), Some(previous_env)),
-                                file_state,
-                            );
+                            let ident = FileIdent::new(name.clone(), Some(previous_env));
+                            inserted_files.insert(name.clone(), ident.clone());
+                            new_env_state.files.insert(ident, file_state);
                         }
                     }
                 }
@@ -334,9 +335,11 @@ impl Workspace {
                     }
                 };
                 let file_name = path.to_str().unwrap().to_string();
-                new_env_state
-                    .files
-                    .insert(FileIdent::new(file_name, None), state);
+                let ident = FileIdent::new(file_name.clone(), None);
+                if let Some(ident) = inserted_files.remove(&ident.name()) {
+                    new_env_state.files.remove(&ident);
+                }
+                new_env_state.files.insert(ident, state);
             }
             Ok(())
         })?;
