@@ -1,3 +1,8 @@
+# [cepler release v0.7.11](https://github.com/bodymindarts/cepler/releases/tag/v0.7.11)
+
+## Fix
+- prepare wasn't checking out the correct file state in rollback use case
+
 # [cepler release v0.7.10](https://github.com/bodymindarts/cepler/releases/tag/v0.7.10)
 
 ## Fix
