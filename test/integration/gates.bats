@@ -115,5 +115,7 @@ queued: HEAD
 propagated: ${trigger1}
 EOF
 
-  cmd -g `fixture`/cepler-gates.yml check -e propagated
+  cmd -g `fixture`/cepler-gates.yml check -e propagated | grep "${trigger1}"
+  cmd -g `fixture`/cepler-gates.yml prepare -e propagated
+  grep "trigger1" `fixture`/queued.yml
 }

@@ -1,11 +1,10 @@
 use anyhow::*;
-use glob::*;
 use serde::Deserialize;
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
     io::{BufReader, Read},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub const MATCH_OPTIONS: glob::MatchOptions = glob::MatchOptions {
@@ -104,14 +103,6 @@ impl EnvironmentConfig {
             .iter()
             .cloned()
             .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
-    }
-
-    pub fn propagated_files(&self) -> impl Iterator<Item = PathBuf> {
-        let files: Vec<_> = self.propagated_files.to_vec();
-        files
-            .into_iter()
-            .flat_map(|file| glob(&file).expect("Couldn't resolve glob"))
-            .map(|res| res.expect("Couldn't list file"))
     }
 
     pub fn head_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> + '_ {

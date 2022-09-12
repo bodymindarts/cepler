@@ -111,42 +111,12 @@ impl Workspace {
         force_clean: bool,
     ) -> Result<()> {
         let repo = Repo::open(gate)?;
-        let ignore_list = self.ignore_list();
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
-        repo.checkout_gate(&head_patterns, &ignore_list, force_clean)?;
-        for file_buf in env.propagated_files() {
-            let file = file_buf.as_path();
-            if file.is_file()
-                && !ignore_list
-                    .iter()
-                    .any(|p| p.matches_path_with(file, MATCH_OPTIONS))
-                && !head_patterns
-                    .iter()
-                    .any(|p| p.matches_path_with(file, MATCH_OPTIONS))
-            {
-                std::fs::remove_file(file_buf).expect("Couldn't remove file");
-            }
-        }
-        if let Some(previous_env) = env.propagated_from() {
-            let patterns: Vec<_> = env.propagated_file_patterns().collect();
-            if let Some(env_state) = self.db.get_target_propagated_state(
-                &env.name,
-                env.ignore_queue,
-                previous_env,
-                &patterns,
-            ) {
-                for (ident, state) in env_state.files.iter() {
-                    let name = ident.name();
-                    if patterns
-                        .iter()
-                        .any(|p| p.matches_with(&name, MATCH_OPTIONS))
-                        && !head_patterns
-                            .iter()
-                            .any(|p| p.matches_with(&name, MATCH_OPTIONS))
-                    {
-                        repo.checkout_file_from(&name, &state.from_commit)?;
-                    }
-                }
+        repo.checkout_gate(&head_patterns, &self.ignore_list(), force_clean)?;
+        let new_env_state = self.construct_env_state(&repo, env, false)?;
+        for (ident, state) in new_env_state.files.iter() {
+            if ident.propagated() {
+                repo.checkout_file_from(&ident.name(), &state.from_commit)?;
             }
         }
         Ok(())

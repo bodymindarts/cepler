@@ -294,6 +294,10 @@ impl FileIdent {
         self.0.chars().skip_while(|c| c != &'}').skip(2).collect()
     }
 
+    pub fn propagated(&self) -> bool {
+        !self.0.starts_with("{latest}")
+    }
+
     pub fn inner(self) -> String {
         self.0
     }

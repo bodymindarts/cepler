@@ -1,1 +1,2 @@
-Empty - please add release notes here
+## Fix
+- prepare wasn't checking out the correct file state in rollback use case
