@@ -9,8 +9,7 @@ pub mod ci_out;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ResourceConfig {
-    #[serde(default)]
-    params: Option<OutParams>,
+    params: Option<ResourceParams>,
     source: Source,
     version: Option<Version>,
 }
@@ -42,9 +41,15 @@ impl From<StateId> for Version {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct OutParams {
+struct ResourceParams {
+    #[serde(default = "bool_true")]
+    prepare: bool,
     repository: String,
     environment: Option<String>,
+}
+
+fn bool_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, Serialize)]

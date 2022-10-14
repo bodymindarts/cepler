@@ -1,7 +1,11 @@
 build:
 	cargo build
+
 test:
 	RUST_BACKTRACE=full cargo watch -s 'cargo test -- --nocapture'
+
+next-watch:
+	cargo watch -s 'cargo nextest run'
 
 integration: build
 	bats -t -r test/integration

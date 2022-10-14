@@ -6,8 +6,11 @@ use std::{io, path::Path};
 pub fn exec(destination: &str) -> Result<()> {
     eprintln!("Preparing resource - cepler v{}", clap::crate_version!());
     let ResourceConfig {
-        source, version, ..
+        source,
+        version,
+        params,
     }: ResourceConfig = serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
+    let should_prepare = params.map(|p| p.prepare).unwrap_or(true);
     eprintln!("Cloning repo to '{}'", destination);
     let version = version.expect("No version specified");
     let conf = GitConfig {
@@ -50,25 +53,36 @@ pub fn exec(destination: &str) -> Result<()> {
         &environment,
         &repo,
     )?;
-    let (state_id, diff) = match ws.check(env, gate.clone())? {
-        Some((state_id, _)) if &state_id.head_commit != wanted_trigger => {
-            eprintln!("Trigger is out of sync.");
-            std::process::exit(1);
-        }
-        None => {
-            eprintln!("Nothing new to deploy... reproducing last state");
-            let state_id = ws.reproduce(env, true)?;
-            if &state_id.head_commit != wanted_trigger {
-                eprintln!("Reproduced state is out of sync - providing empty dir");
-                return empty_repo(version);
+
+    let (state_id, diff) = if should_prepare {
+        match ws.check(env, gate.clone())? {
+            Some((state_id, _)) if &state_id.head_commit != wanted_trigger => {
+                eprintln!("Trigger is out of sync.");
+                std::process::exit(1);
             }
-            (state_id, Vec::new())
+            None => {
+                eprintln!("Nothing new to deploy... reproducing last state");
+                let state_id = ws.reproduce(env, true)?;
+                if &state_id.head_commit != wanted_trigger {
+                    eprintln!("Reproduced state is out of sync - providing empty dir");
+                    return empty_repo(version);
+                }
+                (state_id, Vec::new())
+            }
+            Some(ret) => {
+                eprintln!("Preparing the workspace");
+                ws.prepare(env, gate, true)?;
+                ret
+            }
         }
-        Some(ret) => {
-            eprintln!("Preparing the workspace");
-            ws.prepare(env, gate, true)?;
-            ret
+    } else {
+        eprintln!("Reproducing last state");
+        let state_id = ws.reproduce(env, true)?;
+        if &state_id.head_commit != wanted_trigger {
+            eprintln!("Reproduced state is out of sync - providing empty dir");
+            return empty_repo(version);
         }
+        (state_id, Vec::new())
     };
 
     std::fs::write(".git/cepler_environment", &environment)
