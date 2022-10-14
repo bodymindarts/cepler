@@ -1,6 +1,6 @@
 use crate::{config::*, repo::*, workspace::StateId};
 use anyhow::*;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::path::Path;
 
 pub mod check;
@@ -8,8 +8,9 @@ pub mod ci_in;
 pub mod ci_out;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct ResourceConfig {
-    params: Option<ResourceParams>,
+struct ResourceConfig<P: DeserializeOwned + Serialize> {
+    #[serde(bound = "P: DeserializeOwned")]
+    params: Option<P>,
     source: Source,
     version: Option<Version>,
 }
@@ -41,11 +42,15 @@ impl From<StateId> for Version {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct ResourceParams {
-    #[serde(default = "bool_true")]
-    prepare: bool,
+struct OutParams {
     repository: String,
     environment: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct InParams {
+    #[serde(default = "bool_true")]
+    prepare: bool,
 }
 
 fn bool_true() -> bool {

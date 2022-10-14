@@ -9,7 +9,8 @@ pub fn exec(destination: &str) -> Result<()> {
         source,
         version,
         params,
-    }: ResourceConfig = serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
+    }: ResourceConfig<InParams> =
+        serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     let should_prepare = params.map(|p| p.prepare).unwrap_or(true);
     eprintln!("Cloning repo to '{}'", destination);
     let version = version.expect("No version specified");

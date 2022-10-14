@@ -13,11 +13,11 @@ pub fn exec() -> Result<()> {
         "Checking for new resource - cepler v{}",
         clap::crate_version!()
     );
-    let resource: ResourceConfig =
+    let resource: ResourceConfig<()> =
         serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     let ResourceConfig {
         source, version, ..
-    }: ResourceConfig = resource.clone();
+    }: ResourceConfig<()> = resource.clone();
     if let Some(ref version) = version {
         eprintln!(
             "Last trigger: '{}', checking if we can deploy a newer version",
