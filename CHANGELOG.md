@@ -1,3 +1,9 @@
+# [cepler release v0.7.12](https://github.com/bodymindarts/cepler/releases/tag/v0.7.12)
+
+## Feat
+
+- concourse in params accept 'prepare: false' flag for use cases on which you just want to reproduce the latest state
+
 # [cepler release v0.7.11](https://github.com/bodymindarts/cepler/releases/tag/v0.7.11)
 
 ## Fix
