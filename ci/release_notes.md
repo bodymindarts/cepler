@@ -1,3 +1,1 @@
-## Misc
-
-- bump git2
+Empty - please add release notes here

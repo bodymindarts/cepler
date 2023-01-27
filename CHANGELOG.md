@@ -1,3 +1,9 @@
+# [cepler release v0.7.13](https://github.com/bodymindarts/cepler/releases/tag/v0.7.13)
+
+## Misc
+
+- bump git2
+
 # [cepler release v0.7.12](https://github.com/bodymindarts/cepler/releases/tag/v0.7.12)
 
 ## Feat
