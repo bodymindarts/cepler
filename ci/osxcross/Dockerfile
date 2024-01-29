@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     libgmp-dev \
     protobuf-compiler
 
-RUN rustup target add x86_64-apple-darwin
+RUN rustup target add x86_64-apple-darwin x86_64-unknown-linux-gnu
 
 COPY . /workspace
 WORKDIR /workspace
