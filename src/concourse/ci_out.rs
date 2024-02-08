@@ -48,7 +48,7 @@ pub fn exec(origin: &str) -> Result<()> {
                     value: diff
                         .current_state
                         .map(|state| state.to_string())
-                        .unwrap_or_else(String::new)
+                        .unwrap_or_default()
                 })
                 .collect()
         })?

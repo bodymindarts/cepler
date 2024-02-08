@@ -88,7 +88,7 @@ pub fn exec(destination: &str) -> Result<()> {
 
     std::fs::write(".git/cepler_environment", &environment)
         .context("Couldn't create file '.git/cepler_environment'")?;
-    std::fs::write(".git/cepler_trigger", &state_id.head_commit)
+    std::fs::write(".git/cepler_trigger", state_id.head_commit)
         .context("Couldn't create file '.git/cepler_trigger'")?;
 
     println!(

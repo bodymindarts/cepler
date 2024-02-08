@@ -32,7 +32,7 @@ impl Config {
     pub fn from_reader(reader: impl Read) -> Result<Self> {
         let mut config: Config = serde_yaml::from_reader(reader)?;
         let all_environments: HashSet<String> = config.environments.keys().cloned().collect();
-        for (name, mut env) in config.environments.iter_mut() {
+        for (name, env) in config.environments.iter_mut() {
             env.name = name.clone();
             if let Some(previous) = env.propagated_from.as_ref() {
                 if !all_environments.contains(previous) {

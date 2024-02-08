@@ -31,7 +31,7 @@ pub fn exec() -> Result<()> {
         "{}/cepler-repo-cache",
         env::var(TMPDIR).unwrap_or_else(|_| "/tmp".to_string())
     );
-    let mut file = File::create(&format!(
+    let mut file = File::create(format!(
         "{}/cepler-check-input",
         env::var(TMPDIR).unwrap_or_else(|_| "/tmp".to_string())
     ))?;

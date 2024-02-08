@@ -30,8 +30,8 @@ impl Workspace {
         let new_env_state = self.construct_env_state(&repo, env, false)?;
         Ok(new_env_state
             .files
-            .into_iter()
-            .map(|(k, _)| k.name())
+            .into_keys()
+            .map(|k| k.name())
             .collect())
     }
 
