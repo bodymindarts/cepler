@@ -1,3 +1,1 @@
-## Misc
-
-- improve output when nothing to commit
+Empty - please add release notes here

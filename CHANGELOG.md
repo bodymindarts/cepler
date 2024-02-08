@@ -1,3 +1,9 @@
+# [cepler release v0.7.15](https://github.com/bodymindarts/cepler/releases/tag/v0.7.15)
+
+## Misc
+
+- improve output when nothing to commit
+
 # [cepler release v0.7.14](https://github.com/bodymindarts/cepler/releases/tag/v0.7.14)
 
 ## Fix
