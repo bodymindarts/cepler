@@ -119,7 +119,7 @@ impl Repo {
             private_key,
             ..
         }: GitConfig,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let callbacks = remote_callbacks(private_key.clone());
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
@@ -191,8 +191,10 @@ impl Repo {
                     Some(&mut push_options),
                 )
                 .context("Couldn't push to remote")?;
+            Ok(true)
+        } else {
+            Ok(false)
         }
-        Ok(())
     }
 
     pub fn open(gate: Option<String>) -> Result<Self> {

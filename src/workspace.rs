@@ -28,11 +28,7 @@ impl Workspace {
     pub fn ls(&self, env: &EnvironmentConfig, gate: Option<String>) -> Result<Vec<String>> {
         let repo = Repo::open(gate)?;
         let new_env_state = self.construct_env_state(&repo, env, false)?;
-        Ok(new_env_state
-            .files
-            .into_keys()
-            .map(|k| k.name())
-            .collect())
+        Ok(new_env_state.files.into_keys().map(|k| k.name()).collect())
     }
 
     pub fn check(
@@ -163,7 +159,9 @@ impl Workspace {
         }
         if let Some(config) = git_config {
             eprintln!("Pushing to remote");
-            repo.push(config)?;
+            if !repo.push(config)? {
+                eprintln!("... there was nothing new to push");
+            }
         }
         Ok((
             StateId {
