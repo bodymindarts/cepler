@@ -164,25 +164,34 @@ impl Repo {
             Some(&mut rebase_options),
         )?;
         let sig = Signature::now("Cepler", "bot@cepler.dev")?;
+
+        let mut n_applied = 0;
         while let Some(_) = rebase.next() {
-            rebase
-                .commit(None, &sig, None)
-                .context("Couldn't commit rebase")?;
+            let res = rebase.commit(None, &sig, None);
+            if let Err(ref e) = res {
+                if e.code() == git2::ErrorCode::Applied {
+                    continue;
+                }
+            }
+            n_applied += 1;
+            res.context("Couldn't commit rebase")?;
         }
         rebase.finish(None).context("Couldn't finish rebase")?;
 
-        let mut push_options = PushOptions::new();
-        push_options.remote_callbacks(remote_callbacks(private_key));
-        remote
-            .push(
-                &[format!(
-                    "{}:{}",
-                    head_commit.refname().unwrap(),
-                    head_commit.refname().unwrap(),
-                )],
-                Some(&mut push_options),
-            )
-            .context("Couldn't push to remote")?;
+        if n_applied > 0 {
+            let mut push_options = PushOptions::new();
+            push_options.remote_callbacks(remote_callbacks(private_key));
+            remote
+                .push(
+                    &[format!(
+                        "{}:{}",
+                        head_commit.refname().unwrap(),
+                        head_commit.refname().unwrap(),
+                    )],
+                    Some(&mut push_options),
+                )
+                .context("Couldn't push to remote")?;
+        }
         Ok(())
     }
 
