@@ -1,6 +1,6 @@
 use crate::{config::*, repo::*, workspace::StateId};
 use anyhow::*;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::path::Path;
 
 pub mod check;

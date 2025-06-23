@@ -1,9 +1,9 @@
-use super::config::{default_scope, MATCH_OPTIONS};
+use super::config::{MATCH_OPTIONS, default_scope};
 use anyhow::{Context, Result};
 use git2::{
-    build::CheckoutBuilder, BranchType, Commit, Cred, MergeOptions, Object, ObjectType, Oid,
-    PushOptions, RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode,
-    TreeWalkResult,
+    BranchType, Commit, Cred, MergeOptions, Object, ObjectType, Oid, PushOptions, RebaseOptions,
+    RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode, TreeWalkResult,
+    build::CheckoutBuilder,
 };
 use glob::*;
 use serde::{Deserialize, Serialize};

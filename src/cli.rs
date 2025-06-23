@@ -5,8 +5,8 @@ use super::{
     repo::*,
     workspace::Workspace,
 };
-use anyhow::{anyhow, Context, Result};
-use clap::{clap_app, crate_version, App, ArgMatches};
+use anyhow::{Context, Result, anyhow};
+use clap::{App, ArgMatches, clap_app, crate_version};
 use std::path::Path;
 
 fn app() -> App<'static, 'static> {
