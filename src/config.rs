@@ -118,6 +118,7 @@ pub fn default_scope() -> String {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RepoConfig {
     pub uri: String,
     pub branch: String,

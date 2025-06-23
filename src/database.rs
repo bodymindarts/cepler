@@ -198,7 +198,7 @@ impl Database {
         let _ = fs::remove_dir_all(&self.state_dir);
         fs::create_dir_all(&self.state_dir)?;
         for (name, env) in self.state.environments.iter() {
-            let mut file = File::create(&format!("{}/{}.state", self.state_dir, name))?;
+            let mut file = File::create(format!("{}/{}.state", self.state_dir, name))?;
             let mut bytes = serde_yaml::to_vec(&env)?;
             bytes.extend("\n".as_bytes());
             file.write_all(&bytes)?;

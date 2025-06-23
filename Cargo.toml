@@ -2,7 +2,7 @@
 name = "cepler"
 version = "0.7.16-dev"
 authors = ["Justin Carter <justin@galoy.io>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 repository = "https://github.com/bodymindarts/cepler"
 description = "(Capricious Environment Propagator)-ler"

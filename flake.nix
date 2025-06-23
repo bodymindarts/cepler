@@ -31,6 +31,7 @@
       nativeBuildInputs = with pkgs;
         [
           rustToolchain
+          clang_16
         ]
         ++ lib.optionals pkgs.stdenv.isDarwin [
           darwin.apple_sdk.frameworks.SystemConfiguration
@@ -47,6 +48,7 @@
             bats
             jq
           ];
+          CC = "${clang_16}/bin/clang";
         };
 
         formatter = alejandra;

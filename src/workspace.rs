@@ -295,7 +295,7 @@ impl Workspace {
                 }
             }
         }
-        let ignore_list = vec![
+        let ignore_list = [
             glob::Pattern::new(&self.path_to_config).unwrap(),
             glob::Pattern::new(&format!("{}/*", database.state_dir)).unwrap(),
         ];
