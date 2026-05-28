@@ -113,12 +113,6 @@ impl Repo {
     }
 
     pub fn push(&self, config: GitConfig) -> Result<bool> {
-        // cepler records state onto a branch that is frequently written by other
-        // CI jobs (and humans). Between our fetch and our push another commit can
-        // land on the remote branch, which turns our push into a non-fast-forward
-        // that libgit2 rejects with `ErrorCode::NotFastForward`. Rather than
-        // failing the whole deploy, re-fetch, re-rebase our state commit onto the
-        // new tip and try again a bounded number of times.
         const MAX_PUSH_ATTEMPTS: usize = 5;
         let GitConfig {
             branch,
@@ -215,8 +209,6 @@ impl Repo {
             let refname = head_commit
                 .refname()
                 .context("Annotated commit has no reference name")?;
-            // NOTE: intentionally not wrapped with `.context(..)` so the caller can
-            // downcast the raw git2 error and detect `NotFastForward` to retry.
             remote.push(
                 &[format!("{}:{}", refname, refname)],
                 Some(&mut push_options),
@@ -591,11 +583,6 @@ mod tests {
             .unwrap();
     }
 
-    // Reproduces the production scenario where a concurrent writer advances the
-    // state branch before cepler pushes: cepler must rebase its state commit onto
-    // the new remote tip and push successfully instead of erroring out with a
-    // non-fast-forward. Exercises the full fetch -> rebase -> push machinery that
-    // `push`'s retry loop depends on.
     #[test]
     fn push_rebases_state_commit_onto_concurrent_remote_commit() {
         let base = unique_tmp_dir("push");
@@ -604,7 +591,6 @@ mod tests {
         let work_b = base.join("work_b");
         let bare_url = bare_path.to_str().unwrap().to_string();
 
-        // Bare remote + worker A seeded with an initial commit on the default branch.
         Repository::init_bare(&bare_path).unwrap();
         let repo_a = Repository::init(&work_a).unwrap();
         repo_a.remote("origin", &bare_url).unwrap();
@@ -613,13 +599,11 @@ mod tests {
         let branch = repo_a.head().unwrap().shorthand().unwrap().to_string();
         push_branch(&repo_a, &branch);
 
-        // A second worker advances the remote branch with an unrelated commit.
         let repo_b = Repository::clone(&bare_url, &work_b).unwrap();
         std::fs::write(work_b.join("other.txt"), "concurrent").unwrap();
         let concurrent = stage_and_commit(&repo_b, "concurrent writer commit");
         push_branch(&repo_b, &branch);
 
-        // Worker A (still pointing at the old tip) records new state and pushes.
         std::fs::write(work_a.join("state.txt"), "cepler state").unwrap();
         stage_and_commit(&repo_a, "ci(cepler): Updated state");
 
@@ -638,8 +622,6 @@ mod tests {
         let pushed = repo.push(config).expect("push should succeed after rebase");
         assert!(pushed, "expected the state commit to be pushed");
 
-        // The remote tip must now contain BOTH the concurrent commit and our state,
-        // with the state commit rebased directly on top of the concurrent commit.
         let verify = Repository::clone(&bare_url, base.join("verify")).unwrap();
         let tip = verify.head().unwrap().peel_to_commit().unwrap();
         assert_eq!(tip.summary().unwrap(), "ci(cepler): Updated state");
