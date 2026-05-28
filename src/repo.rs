@@ -112,20 +112,45 @@ impl Repo {
         Ok(())
     }
 
-    pub fn push(
-        &self,
-        GitConfig {
+    pub fn push(&self, config: GitConfig) -> Result<bool> {
+        const MAX_PUSH_ATTEMPTS: usize = 5;
+        let GitConfig {
             branch,
             private_key,
             ..
-        }: GitConfig,
-    ) -> Result<bool> {
-        let callbacks = remote_callbacks(private_key.clone());
+        } = config;
+
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            match self.try_push(&branch, &private_key) {
+                Ok(pushed) => return Ok(pushed),
+                Err(e) => {
+                    let non_fast_forward = e
+                        .downcast_ref::<git2::Error>()
+                        .map(|git_err| git_err.code() == git2::ErrorCode::NotFastForward)
+                        .unwrap_or(false);
+                    if non_fast_forward && attempt < MAX_PUSH_ATTEMPTS {
+                        eprintln!(
+                            "Push rejected because the remote moved; re-fetching and retrying ({}/{})",
+                            attempt, MAX_PUSH_ATTEMPTS
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(200 * attempt as u64));
+                        continue;
+                    }
+                    return Err(e).context("Couldn't push to remote");
+                }
+            }
+        }
+    }
+
+    fn try_push(&self, branch: &str, private_key: &str) -> Result<bool> {
+        let callbacks = remote_callbacks(private_key.to_string());
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
         let mut remote = self.inner.find_remote("origin")?;
         remote
-            .fetch(&[branch.clone()], Some(&mut fo), None)
+            .fetch(&[branch], Some(&mut fo), None)
             .context("Couldn't fetch origin")?;
 
         let annotated_head = self
@@ -133,12 +158,12 @@ impl Repo {
             .reference_to_annotated_commit(&self.inner.head()?)
             .context("Couldn't find head reference")?;
 
-        let head_commit = match self.inner.find_branch(&branch, BranchType::Local) {
-            Ok(branch) if branch.is_head() => annotated_head,
+        let head_commit = match self.inner.find_branch(branch, BranchType::Local) {
+            Ok(local) if local.is_head() => annotated_head,
             _ => {
                 let branch_ref = self
                     .inner
-                    .branch_from_annotated_commit(&branch, &annotated_head, true)
+                    .branch_from_annotated_commit(branch, &annotated_head, true)
                     .context("Could not create local branch")?;
                 self.inner.reference_to_annotated_commit(branch_ref.get())?
             }
@@ -180,17 +205,14 @@ impl Repo {
 
         if n_applied > 0 {
             let mut push_options = PushOptions::new();
-            push_options.remote_callbacks(remote_callbacks(private_key));
-            remote
-                .push(
-                    &[format!(
-                        "{}:{}",
-                        head_commit.refname().unwrap(),
-                        head_commit.refname().unwrap(),
-                    )],
-                    Some(&mut push_options),
-                )
-                .context("Couldn't push to remote")?;
+            push_options.remote_callbacks(remote_callbacks(private_key.to_string()));
+            let refname = head_commit
+                .refname()
+                .context("Annotated commit has no reference name")?;
+            remote.push(
+                &[format!("{}:{}", refname, refname)],
+                Some(&mut push_options),
+            )?;
             Ok(true)
         } else {
             Ok(false)
@@ -512,4 +534,103 @@ fn remote_callbacks(key: String) -> RemoteCallbacks<'static> {
         Cred::ssh_key_from_memory(username_from_url.unwrap(), None, &key, None)
     });
     callbacks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use git2::Repository;
+
+    fn unique_tmp_dir(tag: &str) -> PathBuf {
+        let mut dir = std::env::temp_dir();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        dir.push(format!(
+            "cepler-test-{}-{}-{}",
+            tag,
+            std::process::id(),
+            nanos
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn stage_and_commit(repo: &Repository, msg: &str) -> Oid {
+        let mut index = repo.index().unwrap();
+        index
+            .add_all(["*"], git2::IndexAddOption::DEFAULT, None)
+            .unwrap();
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let sig = Signature::now("Test", "test@example.com").unwrap();
+        let parents: Vec<Commit> = repo
+            .head()
+            .ok()
+            .and_then(|h| h.peel_to_commit().ok())
+            .into_iter()
+            .collect();
+        let parent_refs: Vec<&Commit> = parents.iter().collect();
+        repo.commit(Some("HEAD"), &sig, &sig, msg, &tree, &parent_refs)
+            .unwrap()
+    }
+
+    fn push_branch(repo: &Repository, branch: &str) {
+        let mut remote = repo.find_remote("origin").unwrap();
+        remote
+            .push(&[format!("refs/heads/{0}:refs/heads/{0}", branch)], None)
+            .unwrap();
+    }
+
+    #[test]
+    fn push_rebases_state_commit_onto_concurrent_remote_commit() {
+        let base = unique_tmp_dir("push");
+        let bare_path = base.join("remote.git");
+        let work_a = base.join("work_a");
+        let work_b = base.join("work_b");
+        let bare_url = bare_path.to_str().unwrap().to_string();
+
+        Repository::init_bare(&bare_path).unwrap();
+        let repo_a = Repository::init(&work_a).unwrap();
+        repo_a.remote("origin", &bare_url).unwrap();
+        std::fs::write(work_a.join("file.txt"), "v1").unwrap();
+        stage_and_commit(&repo_a, "initial commit");
+        let branch = repo_a.head().unwrap().shorthand().unwrap().to_string();
+        push_branch(&repo_a, &branch);
+
+        let repo_b = Repository::clone(&bare_url, &work_b).unwrap();
+        std::fs::write(work_b.join("other.txt"), "concurrent").unwrap();
+        let concurrent = stage_and_commit(&repo_b, "concurrent writer commit");
+        push_branch(&repo_b, &branch);
+
+        std::fs::write(work_a.join("state.txt"), "cepler state").unwrap();
+        stage_and_commit(&repo_a, "ci(cepler): Updated state");
+
+        let repo = Repo {
+            inner: repo_a,
+            gate: None,
+        };
+        let config = GitConfig {
+            url: bare_url.clone(),
+            branch: branch.clone(),
+            gates_branch: None,
+            private_key: String::new(),
+            dir: work_a.to_str().unwrap().to_string(),
+        };
+
+        let pushed = repo.push(config).expect("push should succeed after rebase");
+        assert!(pushed, "expected the state commit to be pushed");
+
+        let verify = Repository::clone(&bare_url, base.join("verify")).unwrap();
+        let tip = verify.head().unwrap().peel_to_commit().unwrap();
+        assert_eq!(tip.summary().unwrap(), "ci(cepler): Updated state");
+        assert_eq!(
+            tip.parent(0).unwrap().id(),
+            concurrent,
+            "state commit must be rebased onto the concurrent commit"
+        );
+
+        std::fs::remove_dir_all(&base).ok();
+    }
 }
