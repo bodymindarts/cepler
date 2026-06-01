@@ -1,1 +1,2 @@
-Empty - please add release notes here
+- more retries when pushing
+- updated clippy
