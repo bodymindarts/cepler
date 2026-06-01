@@ -193,10 +193,8 @@ impl Repo {
         let mut n_applied = 0;
         while let Some(_) = rebase.next() {
             let res = rebase.commit(None, &sig, None);
-            if let Err(ref e) = res {
-                if e.code() == git2::ErrorCode::Applied {
-                    continue;
-                }
+            if matches!(res.as_ref(), Err(e) if e.code() == git2::ErrorCode::Applied) {
+                continue;
             }
             n_applied += 1;
             res.context("Couldn't commit rebase")?;
@@ -299,11 +297,12 @@ impl Repo {
         tree.walk(TreeWalkMode::PreOrder, |dir, entry| {
             let path_name = format!("{}{}", dir, entry.name().expect("Entry has no name"));
             let path = Path::new(&path_name);
-            if let Some(ObjectType::Blob) = entry.kind() {
-                if let Err(e) = f(FileHash(entry.id().to_string()), path) {
-                    ret = Err(e);
-                    return TreeWalkResult::Abort;
-                }
+            if !matches!(entry.kind(), Some(ObjectType::Blob)) {
+                return TreeWalkResult::Ok;
+            }
+            if let Err(e) = f(FileHash(entry.id().to_string()), path) {
+                ret = Err(e);
+                return TreeWalkResult::Abort;
             }
             TreeWalkResult::Ok
         })?;
@@ -506,7 +505,7 @@ impl Repo {
         self.gate_commit().id()
     }
 
-    fn gate_object(&self) -> Object {
+    fn gate_object(&self) -> Object<'_> {
         self.inner
             .find_object(self.gate_oid(), Some(ObjectType::Commit))
             .unwrap()

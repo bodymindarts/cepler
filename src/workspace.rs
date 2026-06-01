@@ -267,31 +267,33 @@ impl Workspace {
                 new_env_state.propagated_head = Some(passed_state.head_commit.clone());
                 for (ident, prev_state) in passed_state.files.iter() {
                     let name = ident.name();
-                    if let Some(last_hash) = prev_state.file_hash.as_ref() {
-                        if patterns
-                            .iter()
-                            .any(|p| p.matches_with(&name, MATCH_OPTIONS))
-                        {
-                            let (dirty, file_hash) = if recording {
-                                if let Some(file_hash) = hash_file(&name) {
-                                    (&file_hash != last_hash, Some(file_hash))
-                                } else {
-                                    (true, None)
-                                }
-                            } else {
-                                (false, Some(last_hash.clone()))
-                            };
-                            let file_state = FileState {
-                                dirty,
-                                file_hash,
-                                from_commit: prev_state.from_commit.clone(),
-                                message: prev_state.message.clone(),
-                            };
-                            let ident = FileIdent::new(name.clone(), Some(previous_env));
-                            inserted_files.insert(name.clone(), ident.clone());
-                            new_env_state.files.insert(ident, file_state);
-                        }
+                    let Some(last_hash) = prev_state.file_hash.as_ref() else {
+                        continue;
+                    };
+                    if !patterns
+                        .iter()
+                        .any(|p| p.matches_with(&name, MATCH_OPTIONS))
+                    {
+                        continue;
                     }
+                    let (dirty, file_hash) = if recording {
+                        if let Some(file_hash) = hash_file(&name) {
+                            (&file_hash != last_hash, Some(file_hash))
+                        } else {
+                            (true, None)
+                        }
+                    } else {
+                        (false, Some(last_hash.clone()))
+                    };
+                    let file_state = FileState {
+                        dirty,
+                        file_hash,
+                        from_commit: prev_state.from_commit.clone(),
+                        message: prev_state.message.clone(),
+                    };
+                    let ident = FileIdent::new(name.clone(), Some(previous_env));
+                    inserted_files.insert(name.clone(), ident.clone());
+                    new_env_state.files.insert(ident, file_state);
                 }
             }
         }
