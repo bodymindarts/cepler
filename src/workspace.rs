@@ -267,10 +267,11 @@ impl Workspace {
                 new_env_state.propagated_head = Some(passed_state.head_commit.clone());
                 for (ident, prev_state) in passed_state.files.iter() {
                     let name = ident.name();
-                    if let Some(last_hash) = prev_state.file_hash.as_ref() {
-                        if patterns
-                            .iter()
-                            .any(|p| p.matches_with(&name, MATCH_OPTIONS))
+                    match prev_state.file_hash.as_ref() {
+                        Some(last_hash)
+                            if patterns
+                                .iter()
+                                .any(|p| p.matches_with(&name, MATCH_OPTIONS)) =>
                         {
                             let (dirty, file_hash) = if recording {
                                 if let Some(file_hash) = hash_file(&name) {
@@ -291,6 +292,7 @@ impl Workspace {
                             inserted_files.insert(name.clone(), ident.clone());
                             new_env_state.files.insert(ident, file_state);
                         }
+                        _ => {}
                     }
                 }
             }

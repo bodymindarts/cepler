@@ -34,10 +34,11 @@ impl Config {
         let all_environments: HashSet<String> = config.environments.keys().cloned().collect();
         for (name, env) in config.environments.iter_mut() {
             env.name = name.clone();
-            if let Some(previous) = env.propagated_from.as_ref() {
-                if !all_environments.contains(previous) {
+            match env.propagated_from.as_ref() {
+                Some(previous) if !all_environments.contains(previous) => {
                     return Err(anyhow!("Previous environment '{}' not defined", previous));
                 }
+                _ => {}
             }
         }
 
@@ -101,15 +102,13 @@ impl EnvironmentConfig {
     pub fn propagated_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> + '_ {
         self.propagated_files
             .iter()
-            .cloned()
-            .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
+            .map(|path| glob::Pattern::new(path).expect("Couldn't compile glob pattern"))
     }
 
     pub fn head_file_patterns(&self) -> impl Iterator<Item = glob::Pattern> + '_ {
         self.head_files
             .iter()
-            .cloned()
-            .map(|path| glob::Pattern::new(&path).expect("Couldn't compile glob pattern"))
+            .map(|path| glob::Pattern::new(path).expect("Couldn't compile glob pattern"))
     }
 }
 
