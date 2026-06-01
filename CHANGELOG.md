@@ -1,3 +1,8 @@
+# [cepler release v0.7.16](https://github.com/bodymindarts/cepler/releases/tag/v0.7.16)
+
+- more retries when pushing
+- updated clippy
+
 # [cepler release v0.7.15](https://github.com/bodymindarts/cepler/releases/tag/v0.7.15)
 
 ## Misc
