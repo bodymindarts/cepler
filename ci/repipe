@@ -11,11 +11,10 @@ target="${FLY_TARGET:-cepler}"
 
 REPO_ROOT_DIR="$(dirname $( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd ))"
 
-TMPDIR=""¬
 TMPDIR=$(mktemp -d -t repipe.XXXXXX)
 trap "rm -rf ${TMPDIR}" INT TERM QUIT EXIT
 
-ytt -f ci > ${TMPDIR}/pipeline.yml
+ytt -f ci/pipeline.yml -f ci/values.yml > ${TMPDIR}/pipeline.yml
 
 echo "Updating pipeline @ ${target}"
 
