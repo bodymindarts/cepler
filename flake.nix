@@ -47,6 +47,7 @@
             cargo-watch
             bats
             jq
+            ytt
           ];
           CC = "${clang_16}/bin/clang";
         };
