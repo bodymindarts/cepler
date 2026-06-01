@@ -142,6 +142,6 @@ mod test {
         assert!(
             conf.environments.get("testflight").unwrap().head_files == vec!["file.yml".to_string()]
         );
-        assert!(conf.scope == "default".to_string());
+        assert!(conf.scope == *"default");
     }
 }
