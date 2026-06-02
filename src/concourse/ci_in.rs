@@ -1,7 +1,7 @@
 use super::*;
 use crate::workspace::Workspace;
 use glob::*;
-use std::{io, path::Path};
+use std::{fs, io, path::Path};
 
 pub fn exec(destination: &str) -> Result<()> {
     eprintln!("Preparing resource - cepler v{}", clap::crate_version!());
@@ -12,8 +12,18 @@ pub fn exec(destination: &str) -> Result<()> {
     }: ResourceConfig<InParams> =
         serde_json::from_reader(io::stdin()).context("Deserializing stdin")?;
     let should_prepare = params.map(|p| p.prepare).unwrap_or(true);
-    eprintln!("Cloning repo to '{}'", destination);
     let version = version.expect("No version specified");
+
+    // Short-circuit when no environment is configured: the cloned repo would
+    // only be deleted by `empty_repo` anyway, so skip the expensive clone.
+    let Some(environment) = source.environment.clone() else {
+        eprintln!("No environment specified... providing an empty dir");
+        fs::create_dir_all(destination)?;
+        std::env::set_current_dir(destination)?;
+        return empty_repo(version);
+    };
+
+    eprintln!("Cloning repo to '{}'", destination);
     let conf = GitConfig {
         url: source.uri,
         branch: source.branch.clone(),
@@ -33,12 +43,6 @@ pub fn exec(destination: &str) -> Result<()> {
 
     let config = Config::from_file(&source.config)?;
     let ws = Workspace::new(&config.scope, source.config, source.ignore_queue)?;
-    let environment = if let Some(environment) = source.environment {
-        environment
-    } else {
-        eprintln!("No environment specified... providing an empty dir");
-        return empty_repo(version);
-    };
     let env = config
         .environments
         .get(&environment)

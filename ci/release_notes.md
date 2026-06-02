@@ -1,1 +1,1 @@
-Empty - please add release notes here
+- concourse `in`: skip clone when no environment is configured
