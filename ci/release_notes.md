@@ -1,2 +1,1 @@
-- concourse `in`: skip clone when no environment is configured
-- saves a full network clone of the gates repo on every `get` step whose resource has no `environment` set
+Empty - please add release notes here

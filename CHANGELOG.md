@@ -1,3 +1,8 @@
+# [cepler release v0.7.17](https://github.com/bodymindarts/cepler/releases/tag/v0.7.17)
+
+- concourse `in`: skip clone when no environment is configured
+- saves a full network clone of the gates repo on every `get` step whose resource has no `environment` set
+
 # [cepler release v0.7.16](https://github.com/bodymindarts/cepler/releases/tag/v0.7.16)
 
 - more retries when pushing
