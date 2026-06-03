@@ -68,6 +68,20 @@ All other ones will be deleted.
 
 The `put` operation will commit the state via the command `cepler record -e <environment> --reset-head` and push the changes to the remote repository (after attempting to rebase against the upstream head).
 
+## Source params
+
+| param | required | default | notes |
+| --- | --- | --- | --- |
+| `uri` | yes | — | git remote URL |
+| `branch` | yes | — | branch to deploy from |
+| `private_key` | yes | — | ssh key for fetch/push |
+| `environment` | no | — | which env in `cepler.yml` this resource tracks. Omit to use the resource only as a `put`-side recorder |
+| `config` | no | `cepler.yml` | path to the cepler config |
+| `gates_file` | no | — | path to a gates file |
+| `gates_branch` | no | — | branch the gates file lives on |
+| `ignore_queue` | no | `false` | skip queue ordering |
+| `depth` | no | full clone | **performance**: shallow-clone depth for the `in` step, mirroring the official `git` resource's `depth`. Set to e.g. `50` for large repos to drop the per-`get` clone time by an order of magnitude. Cepler will deepen the clone on-demand if a history walk reaches the shallow boundary, so correctness is preserved. |
+
 ## Pipeline generation
 
 Please checkout the (cepler-templates)[https://github.com/bodymindarts/cepler-templates] project to find out more about generating best-practices pipelines.

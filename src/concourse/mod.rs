@@ -26,6 +26,12 @@ struct Source {
     ignore_queue: bool,
     #[serde(default = "default_config_path")]
     config: String,
+    /// Shallow-clone depth for the `in` step. Mirrors the concourse
+    /// git-resource's `depth`. `None` or `0` = full clone (current default).
+    /// When set, cepler will deepen on-demand if a history walk crosses the
+    /// shallow boundary.
+    #[serde(default)]
+    depth: Option<i32>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Version {

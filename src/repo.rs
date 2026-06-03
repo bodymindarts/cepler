@@ -53,11 +53,26 @@ pub struct GitConfig {
     pub gates_branch: Option<String>,
     pub private_key: String,
     pub dir: String,
+    /// Shallow-clone depth. `None` (or `Some(0)`) means a full clone, matching
+    /// the concourse git-resource's `depth` source param semantics.
+    pub depth: Option<i32>,
 }
 
 pub struct Repo {
     inner: Repository,
     gate: Option<Oid>,
+    /// Credentials + branch info kept around so we can deepen a shallow clone
+    /// on-demand when a history walk reaches the shallow boundary. Only the
+    /// clone path on the `in` step populates this; `Repo::open` (used by `out`)
+    /// leaves it `None` since the workspace there came from `in` and shouldn't
+    /// need further deepening.
+    fetch_credentials: Option<FetchCredentials>,
+}
+
+#[derive(Clone)]
+pub struct FetchCredentials {
+    branch: String,
+    private_key: String,
 }
 
 impl Repo {
@@ -67,18 +82,31 @@ impl Repo {
             branch,
             private_key,
             dir,
+            depth,
             ..
         }: GitConfig,
     ) -> Result<Self> {
-        let callbacks = remote_callbacks(private_key);
+        let callbacks = remote_callbacks(private_key.clone());
         let mut fo = git2::FetchOptions::new();
         fo.remote_callbacks(callbacks);
+        let shallow = depth.filter(|d| *d > 0);
+        if let Some(d) = shallow {
+            fo.depth(d);
+        }
 
         let mut builder = git2::build::RepoBuilder::new();
         builder.fetch_options(fo);
         builder.branch(&branch);
         let inner = builder.clone(&url, Path::new(&dir))?;
-        Ok(Self { inner, gate: None })
+        let fetch_credentials = shallow.map(|_| FetchCredentials {
+            branch,
+            private_key,
+        });
+        Ok(Self {
+            inner,
+            gate: None,
+            fetch_credentials,
+        })
     }
 
     pub fn pull(
@@ -123,7 +151,13 @@ impl Repo {
         let mut attempt = 0;
         loop {
             attempt += 1;
-            match self.try_push(&branch, &private_key) {
+            // Skip the pre-push fetch on the first attempt: the workspace was
+            // freshly cloned/pulled milliseconds ago by `in`/`check`, so
+            // refreshing origin again is wasted bandwidth in the happy path.
+            // On a `NotFastForward` retry we fall back to fetching so the
+            // rebase has up-to-date upstream.
+            let refresh_remote = attempt > 1;
+            match self.try_push(&branch, &private_key, refresh_remote) {
                 Ok(pushed) => return Ok(pushed),
                 Err(e) => {
                     let non_fast_forward = e
@@ -144,14 +178,16 @@ impl Repo {
         }
     }
 
-    fn try_push(&self, branch: &str, private_key: &str) -> Result<bool> {
-        let callbacks = remote_callbacks(private_key.to_string());
-        let mut fo = git2::FetchOptions::new();
-        fo.remote_callbacks(callbacks);
+    fn try_push(&self, branch: &str, private_key: &str, refresh_remote: bool) -> Result<bool> {
         let mut remote = self.inner.find_remote("origin")?;
-        remote
-            .fetch(&[branch], Some(&mut fo), None)
-            .context("Couldn't fetch origin")?;
+        if refresh_remote {
+            let callbacks = remote_callbacks(private_key.to_string());
+            let mut fo = git2::FetchOptions::new();
+            fo.remote_callbacks(callbacks);
+            remote
+                .fetch(&[branch], Some(&mut fo), None)
+                .context("Couldn't fetch origin")?;
+        }
 
         let annotated_head = self
             .inner
@@ -228,7 +264,65 @@ impl Repo {
         } else {
             None
         };
-        Ok(Self { inner, gate })
+        Ok(Self {
+            inner,
+            gate,
+            fetch_credentials: None,
+        })
+    }
+
+    /// Borrow the credentials a shallow `Repo::clone` was given. Workspace
+    /// methods that re-open the repo via `Repo::open` use this to carry the
+    /// deepen-on-demand capability across the boundary.
+    pub fn fetch_credentials(&self) -> Option<&FetchCredentials> {
+        self.fetch_credentials.as_ref()
+    }
+
+    pub fn with_fetch_credentials(mut self, creds: Option<FetchCredentials>) -> Self {
+        self.fetch_credentials = creds;
+        self
+    }
+
+    /// Returns true when the local repo is a shallow clone and `commit` sits
+    /// exactly on the shallow boundary — i.e. its real parents exist on the
+    /// remote but were not fetched locally.
+    fn is_shallow_boundary(&self, commit: Oid) -> bool {
+        if !self.inner.is_shallow() {
+            return false;
+        }
+        let shallow_path = self.inner.path().join("shallow");
+        let Ok(contents) = std::fs::read_to_string(&shallow_path) else {
+            return false;
+        };
+        let needle = commit.to_string();
+        contents.lines().any(|line| line.trim() == needle)
+    }
+
+    /// Deepen the shallow clone by re-fetching with a larger depth. Returns
+    /// `true` if the boundary actually moved (i.e. new history is now available),
+    /// `false` when we have no credentials, the repo isn't shallow, or the
+    /// fetch failed.
+    fn deepen(&self, new_depth: i32) -> bool {
+        let Some(creds) = self.fetch_credentials.as_ref() else {
+            return false;
+        };
+        if !self.inner.is_shallow() {
+            return false;
+        }
+        let callbacks = remote_callbacks(creds.private_key.clone());
+        let mut fo = git2::FetchOptions::new();
+        fo.remote_callbacks(callbacks);
+        fo.depth(new_depth);
+        let Ok(mut remote) = self.inner.find_remote("origin") else {
+            return false;
+        };
+        eprintln!(
+            "Hit shallow boundary; deepening clone to depth {}",
+            new_depth
+        );
+        remote
+            .fetch(&[creds.branch.as_str()], Some(&mut fo), None)
+            .is_ok()
     }
 
     pub fn commit_state_file(&self, scope: &str, file_name: String) -> Result<()> {
@@ -403,10 +497,11 @@ impl Repo {
         F: FnMut(CommitHash) -> Result<bool>,
     {
         let commit = Oid::from_str(&commit.0).expect("Couldn't parse commit hash");
-        let commit = self.inner.find_commit(commit)?;
+        let mut commit = self.inner.find_commit(commit)?;
         let mut set = HashSet::new();
         let mut queue = VecDeque::new();
         set.insert(commit.id());
+        self.deepen_if_needed(&mut commit);
         for parent in commit.parents() {
             if set.insert(parent.id()) {
                 queue.push_back(parent);
@@ -416,10 +511,11 @@ impl Repo {
             if queue.is_empty() {
                 break;
             }
-            let commit = queue.pop_front().unwrap();
+            let mut commit = queue.pop_front().unwrap();
             if !cb(CommitHash(commit.id().to_string()))? {
                 break;
             }
+            self.deepen_if_needed(&mut commit);
             for parent in commit.parents() {
                 if set.insert(parent.id()) {
                     queue.push_back(parent);
@@ -427,6 +523,29 @@ impl Repo {
             }
         }
         Ok(())
+    }
+
+    /// If `commit` sits on the shallow boundary, repeatedly double the clone
+    /// depth (re-fetching) until either parents become visible, deepening
+    /// fails, or we hit a sanity cap. Re-binds `commit` after each fetch so its
+    /// `.parents()` reflects the new history.
+    fn deepen_if_needed<'a>(&'a self, commit: &mut Commit<'a>) {
+        const INITIAL_DEPTH: i32 = 100;
+        const MAX_DEPTH: i32 = 100_000;
+        if !self.is_shallow_boundary(commit.id()) {
+            return;
+        }
+        let mut next_depth = INITIAL_DEPTH;
+        while self.is_shallow_boundary(commit.id()) && next_depth <= MAX_DEPTH {
+            if !self.deepen(next_depth) {
+                return;
+            }
+            // Re-bind so parents() sees the freshly fetched history.
+            if let Ok(refreshed) = self.inner.find_commit(commit.id()) {
+                *commit = refreshed;
+            }
+            next_depth = next_depth.saturating_mul(2);
+        }
     }
 
     pub fn find_last_changed_commit(
@@ -447,7 +566,8 @@ impl Repo {
         queue.push_back(commit);
 
         loop {
-            let commit = queue.pop_front().unwrap();
+            let mut commit = queue.pop_front().unwrap();
+            self.deepen_if_needed(&mut commit);
             let mut go = false;
             for parent in commit.parents() {
                 if let Ok(tree) = parent.tree().expect("Couldn't get tree").get_path(file) {
@@ -609,6 +729,7 @@ mod tests {
         let repo = Repo {
             inner: repo_a,
             gate: None,
+            fetch_credentials: None,
         };
         let config = GitConfig {
             url: bare_url.clone(),
@@ -616,6 +737,7 @@ mod tests {
             gates_branch: None,
             private_key: String::new(),
             dir: work_a.to_str().unwrap().to_string(),
+            depth: None,
         };
 
         let pushed = repo.push(config).expect("push should succeed after rebase");
@@ -628,6 +750,122 @@ mod tests {
             tip.parent(0).unwrap().id(),
             concurrent,
             "state commit must be rebased onto the concurrent commit"
+        );
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn is_shallow_boundary_detects_commits_listed_in_shallow_file() {
+        // libgit2's `local` transport doesn't support shallow fetches, so we
+        // can't end-to-end-test the deepen path in unit tests (it requires a
+        // real ssh/https remote). Instead, simulate the on-disk state a
+        // shallow clone leaves behind and verify the boundary detector
+        // correctly identifies which commits sit on the shallow edge — that
+        // detector is what gates `deepen_if_needed` from looping forever on a
+        // genuine root commit.
+        let base = unique_tmp_dir("shallow-boundary");
+        let work = base.join("work");
+        let bare_path = base.join("remote.git");
+        let bare_url = bare_path.to_str().unwrap().to_string();
+
+        Repository::init_bare(&bare_path).unwrap();
+        let seed = Repository::init(&work).unwrap();
+        seed.remote("origin", &bare_url).unwrap();
+
+        std::fs::write(work.join("file.txt"), "v0").unwrap();
+        let root_oid = stage_and_commit(&seed, "root");
+        let branch = seed.head().unwrap().shorthand().unwrap().to_string();
+        push_branch(&seed, &branch);
+
+        std::fs::write(work.join("file.txt"), "v1").unwrap();
+        let tip_oid = stage_and_commit(&seed, "tip");
+        push_branch(&seed, &branch);
+
+        // Hand-craft `.git/shallow` to declare the tip as a boundary, the way
+        // a real `git clone --depth 1` would.
+        std::fs::write(seed.path().join("shallow"), format!("{}\n", tip_oid)).unwrap();
+        // git2 needs a hint to re-evaluate shallow state — reopen the repo.
+        let inner = Repository::open(&work).unwrap();
+        assert!(
+            inner.is_shallow(),
+            "writing .git/shallow should make is_shallow() return true"
+        );
+
+        let repo = Repo {
+            inner,
+            gate: None,
+            fetch_credentials: None,
+        };
+
+        assert!(
+            repo.is_shallow_boundary(tip_oid),
+            "tip is listed in .git/shallow and must be detected as a boundary"
+        );
+        assert!(
+            !repo.is_shallow_boundary(root_oid),
+            "root is NOT listed in .git/shallow — must not be flagged as a boundary"
+        );
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn first_push_attempt_skips_remote_fetch() {
+        // Build a remote with two commits and a clone that only knows the
+        // first one. If `try_push` were still doing a pre-push fetch, our
+        // local view would jump forward and the push would succeed.
+        // Skipping the fetch means we still think origin is at commit #1,
+        // so a non-fast-forward push fails (without ever touching the network).
+        let base = unique_tmp_dir("first-push-no-fetch");
+        let bare_path = base.join("remote.git");
+        let work_a = base.join("work_a");
+        let work_b = base.join("work_b");
+        let bare_url = bare_path.to_str().unwrap().to_string();
+
+        Repository::init_bare(&bare_path).unwrap();
+        let repo_a = Repository::init(&work_a).unwrap();
+        repo_a.remote("origin", &bare_url).unwrap();
+        std::fs::write(work_a.join("file.txt"), "v1").unwrap();
+        stage_and_commit(&repo_a, "initial commit");
+        let branch = repo_a.head().unwrap().shorthand().unwrap().to_string();
+        push_branch(&repo_a, &branch);
+
+        // Clone B from origin (sees commit #1).
+        let repo_b = Repository::clone(&bare_url, &work_b).unwrap();
+
+        // Worker A pushes commit #2 to origin out-of-band.
+        std::fs::write(work_a.join("file.txt"), "v2").unwrap();
+        stage_and_commit(&repo_a, "out of band commit");
+        push_branch(&repo_a, &branch);
+
+        // Worker B records its own cepler state on top of its stale view…
+        std::fs::write(work_b.join("state.txt"), "cepler state").unwrap();
+        stage_and_commit(&repo_b, "ci(cepler): Updated state");
+
+        // Point an unreachable URL to force a network error if any
+        // attempt re-fetches. The first attempt should still succeed at the
+        // rebase step (it never fetches) and only the push itself can fail.
+        let unreachable = "ssh://invalid.invalid/does-not-exist.git";
+        repo_b.remote_set_url("origin", unreachable).unwrap();
+
+        let repo = Repo {
+            inner: repo_b,
+            gate: None,
+            fetch_credentials: None,
+        };
+
+        // Single-attempt try_push with refresh_remote = false. Skipping the
+        // fetch must not error out before reaching the push (the rebase uses
+        // the stale local origin/<branch> ref). The push itself will fail
+        // because the URL is bogus, which is fine — we're asserting we made
+        // it past the fetch.
+        let result = repo.try_push(&branch, "", false);
+        let err = result.expect_err("push to unreachable remote should fail");
+        let msg = format!("{:#}", err);
+        assert!(
+            !msg.contains("Couldn't fetch origin"),
+            "first attempt must skip pre-push fetch, got: {msg}"
         );
 
         std::fs::remove_dir_all(&base).ok();

@@ -1,0 +1,35 @@
+name: nextest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nextest:
+    name: cargo nextest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Cache nix store
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Shared with the bats workflow — both build the same crate.
+          shared-key: cargo
+
+      - run: nix develop -c cargo nextest run --locked

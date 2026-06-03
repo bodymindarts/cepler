@@ -84,6 +84,7 @@ pub fn run() -> Result<()> {
             gates_branch: matches.value_of("GATES_BRANCH").map(|b| b.to_string()),
             private_key: matches.value_of("GIT_PRIVATE_KEY").unwrap().to_string(),
             dir: dir.to_string(),
+            depth: None,
         };
         let path = std::path::Path::new(&dir);
         if !path.exists() || path.read_dir()?.next().is_none() {
@@ -247,6 +248,7 @@ fn record(
             gates_branch: None,
             private_key: matches.value_of("GIT_PRIVATE_KEY").unwrap().to_string(),
             dir: String::new(),
+            depth: None,
         })
     } else {
         None

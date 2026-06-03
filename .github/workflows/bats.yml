@@ -1,0 +1,53 @@
+name: bats
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bats:
+    name: bats integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The bats helpers walk git history and create branches against
+          # the checkout itself, so we need full history.
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Cache nix store
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Shared with the nextest workflow.
+          shared-key: cargo
+
+      - name: Configure git for bats commits
+        # actions/checkout leaves a detached HEAD on PRs, but the bats
+        # helpers (`prepare_test` / `reset_repo_state`) stash and restore
+        # `git branch --show-current`. Create a local branch so the
+        # restore step has a name to check out.
+        run: |
+          git config --global user.email "ci@cepler.dev"
+          git config --global user.name "cepler ci"
+          git checkout -B ci-run
+
+      - name: Build cepler (debug — the bats helpers shell out to ./target/debug/cepler)
+        run: nix develop -c cargo build --locked
+
+      - name: Run bats
+        run: nix develop -c bats -t -r test/integration
