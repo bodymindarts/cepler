@@ -1,9 +1,9 @@
 use super::config::{MATCH_OPTIONS, default_scope};
 use anyhow::{Context, Result};
 use git2::{
-    BranchType, Commit, Cred, MergeOptions, Object, ObjectType, Oid, PushOptions, RebaseOptions,
-    RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode, TreeWalkResult,
-    build::CheckoutBuilder,
+    BranchType, CertificateCheckStatus, Commit, Cred, MergeOptions, Object, ObjectType, Oid,
+    PushOptions, RebaseOptions, RemoteCallbacks, Repository, ResetType, Signature, TreeWalkMode,
+    TreeWalkResult, build::CheckoutBuilder,
 };
 use glob::*;
 use serde::{Deserialize, Serialize};
@@ -652,6 +652,17 @@ fn remote_callbacks(key: String) -> RemoteCallbacks<'static> {
     callbacks.credentials(move |_url, username_from_url, _allowed_types| {
         Cred::ssh_key_from_memory(username_from_url.unwrap(), None, &key, None)
     });
+    // libgit2 1.7+ (pulled in by git2 0.20) rejects unknown SSH host keys
+    // with `invalid or unknown remote ssh hostkey; class=Ssh (23); code=-17`
+    // unless the caller installs a certificate_check callback. The
+    // pre-bump cepler (git2 0.13 / libgit2 1.3.x) silently accepted any
+    // host key — concourse pipelines run against a known git remote and
+    // the user's SSH private key already authenticates the connection,
+    // so restore the prior behaviour by explicitly accepting the host
+    // certificate. Returning `CertificatePassthrough` would defer to
+    // libgit2's built-in check, which without a known_hosts file at a
+    // path libgit2 looks for will hard-reject every host.
+    callbacks.certificate_check(|_cert, _host| Ok(CertificateCheckStatus::CertificateOk));
     callbacks
 }
 
