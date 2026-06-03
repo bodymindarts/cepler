@@ -42,6 +42,10 @@ pub fn exec() -> Result<()> {
         gates_branch: source.gates_branch.clone(),
         private_key: source.private_key,
         dir: clone_dir.clone(),
+        // `check` keeps a persistent on-worker cache and pulls into it; a
+        // shallow boundary would make subsequent walks unreliable, so always
+        // do a full clone here regardless of the source-level `depth`.
+        depth: None,
     };
     let path = path::Path::new(&clone_dir);
     let repo = if !path.exists() || path.read_dir()?.next().is_none() {

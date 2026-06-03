@@ -8,6 +8,7 @@ pub struct Workspace {
     scope: String,
     ignore_queue: bool,
     db: Database,
+    fetch_credentials: Option<FetchCredentials>,
 }
 
 pub struct StateId {
@@ -22,11 +23,24 @@ impl Workspace {
             scope: scope.to_string(),
             path_to_config,
             ignore_queue,
+            fetch_credentials: None,
         })
     }
 
+    /// Attach credentials so that `Repo::open` inside the workspace methods
+    /// can deepen the shallow clone on-demand when a history walk reaches the
+    /// shallow boundary. Only the concourse `in` step has these.
+    pub fn with_fetch_credentials(mut self, creds: Option<FetchCredentials>) -> Self {
+        self.fetch_credentials = creds;
+        self
+    }
+
+    fn open_repo(&self, gate: Option<String>) -> Result<Repo> {
+        Ok(Repo::open(gate)?.with_fetch_credentials(self.fetch_credentials.clone()))
+    }
+
     pub fn ls(&self, env: &EnvironmentConfig, gate: Option<String>) -> Result<Vec<String>> {
-        let repo = Repo::open(gate)?;
+        let repo = self.open_repo(gate)?;
         let new_env_state = self.construct_env_state(&repo, env, false)?;
         Ok(new_env_state.files.into_keys().map(|k| k.name()).collect())
     }
@@ -36,7 +50,7 @@ impl Workspace {
         env: &EnvironmentConfig,
         gate: Option<String>,
     ) -> Result<Option<(StateId, Vec<FileDiff>)>> {
-        let repo = Repo::open(gate)?;
+        let repo = self.open_repo(gate)?;
         if let Some(previous_env) = env.propagated_from() {
             self.db.get_current_state(previous_env).context(format!(
                 "Previous environment '{}' not deployed yet",
@@ -84,7 +98,7 @@ impl Workspace {
     }
 
     pub fn reproduce(&self, env: &EnvironmentConfig, force_clean: bool) -> Result<StateId> {
-        let repo = Repo::open(None)?;
+        let repo = self.open_repo(None)?;
         if let Some((version, last_state)) = self.db.get_current_state(&env.name) {
             if force_clean {
                 repo.checkout_gate(&[], &self.ignore_list(), true)?;
@@ -107,7 +121,7 @@ impl Workspace {
         gate: Option<String>,
         force_clean: bool,
     ) -> Result<()> {
-        let repo = Repo::open(gate)?;
+        let repo = self.open_repo(gate)?;
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         repo.checkout_gate(&head_patterns, &self.ignore_list(), force_clean)?;
         let new_env_state = self.construct_env_state(&repo, env, false)?;
@@ -128,7 +142,7 @@ impl Workspace {
         git_config: Option<GitConfig>,
     ) -> Result<(StateId, Vec<FileDiff>)> {
         eprintln!("Recording current state");
-        let repo = Repo::open(gate)?;
+        let repo = self.open_repo(gate)?;
         let new_env_state = self.construct_env_state(&repo, env, true)?;
         let head_commit = new_env_state.head_commit.clone().inner();
         let diffs = if let Some((_, last_state)) = self.db.get_current_state(&env.name) {

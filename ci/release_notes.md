@@ -1,1 +1,4 @@
-Empty - please add release notes here
+- concourse `in`: optional `depth` source param for shallow clones, mirroring the official `git` resource. cuts the first `get` clone for large repos by an order of magnitude when set.
+- shallow clones deepen on-demand when a history walk reaches the shallow boundary, so `find_last_changed_commit` and the state diff still resolve correctly.
+- `out` skips the pre-push fetch on the first attempt — the workspace was freshly cloned by `in` seconds earlier. fetch+rebase only happens on `NotFastForward` retry.
+- bump `git2` 0.13 -> 0.20 (required for shallow-clone support).
