@@ -1,3 +1,8 @@
+# [cepler release v0.7.21](https://github.com/bodymindarts/cepler/releases/tag/v0.7.21)
+
+- concourse `in`: emit `[cepler-perf]` timing lines for each phase (`RepoBuilder::clone`, Mixed reset, config read, selective checkout, `ws.check`, `ws.prepare`).
+- diagnostic-only — no behaviour change. Lets the operator attribute the wall-clock of an `in` invocation without re-running with manual instrumentation.
+
 # [cepler release v0.7.20](https://github.com/bodymindarts/cepler/releases/tag/v0.7.20)
 
 - remove shallow-clone support from the concourse `in` resource. The `depth` source param introduced in v0.7.18 (default `50` since v0.7.19) saved ~10s on the initial clone but exposed correctness bugs in the deepen-on-demand path — most recently the "object not found" failure on propagated `from_commit`s that sit far behind the shallow boundary (volcano-qa-lana-bank build #924). With the no-checkout clone optimisation from v0.7.19 still in place, the network/pack phase is already a small fraction of total `in` time, so the complexity wasn't worth carrying.
