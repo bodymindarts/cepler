@@ -94,10 +94,37 @@ impl Repo {
             fo.depth(d);
         }
 
+        // Skip libgit2's implicit working-tree checkout. For repos with
+        // many files it dominates clone wall-clock time (~2-3 minutes on
+        // the volcano-qa state repo) and emits no progress, so it looks
+        // like a hang. Callers materialise just the files they actually
+        // need via `checkout_paths` (concourse `in`/`check`) or
+        // `checkout_head` (CLI), which is orders of magnitude faster than
+        // writing every blob in HEAD.
+        let mut no_checkout = git2::build::CheckoutBuilder::new();
+        no_checkout.dry_run();
+
         let mut builder = git2::build::RepoBuilder::new();
         builder.fetch_options(fo);
         builder.branch(&branch);
+        builder.with_checkout(no_checkout);
         let inner = builder.clone(&url, Path::new(&dir))?;
+
+        // libgit2 short-circuits both working-tree AND index population
+        // when checkout_strategy == GIT_CHECKOUT_NONE (see clone.c
+        // `should_checkout`). The index needs to be in sync with HEAD so
+        // that a later `index.write_tree()` from `commit_state_file` on
+        // the `out` step produces a tree that still includes everything
+        // inherited from HEAD — without this step `out` would commit a
+        // tree containing only the new state file, deleting the rest of
+        // the repo. ResetType::Mixed fills the index from HEAD without
+        // touching the working tree.
+        {
+            let head_commit = inner.head()?.peel_to_commit()?;
+            let head_obj = head_commit.into_object();
+            inner.reset(&head_obj, ResetType::Mixed, None)?;
+        }
+
         let fetch_credentials = shallow.map(|_| FetchCredentials {
             branch,
             private_key,
@@ -492,6 +519,39 @@ impl Repo {
         Ok(())
     }
 
+    /// Selectively materialise specific paths from HEAD into the working
+    /// tree. Patterns follow libgit2's fnmatch-style semantics — `*`
+    /// inside a single directory component, no `**` recursion — so a
+    /// state directory is expressed as `dir/*` (the state files are flat
+    /// under it). Used by the concourse `in`/`check` flows after a
+    /// no-checkout clone to populate just the files cepler reads from
+    /// disk (config + state dir + optional gates file).
+    ///
+    /// The index is left untouched (`update_index(false)`) since
+    /// `Repo::clone` already populated it in full via the Mixed reset —
+    /// a partial WT checkout shouldn't be allowed to shrink that record.
+    pub fn checkout_paths<I, S>(&self, paths: I) -> Result<()>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut checkout = CheckoutBuilder::new();
+        checkout.force();
+        checkout.update_index(false);
+        let mut any = false;
+        for path in paths {
+            checkout.path(path.as_ref());
+            any = true;
+        }
+        if !any {
+            return Ok(());
+        }
+        let head_commit = self.inner.head()?.peel_to_commit()?;
+        let head_obj = head_commit.into_object();
+        self.inner.checkout_tree(&head_obj, Some(&mut checkout))?;
+        Ok(())
+    }
+
     pub fn walk_commits_before<F>(&self, commit: CommitHash, mut cb: F) -> Result<()>
     where
         F: FnMut(CommitHash) -> Result<bool>,
@@ -877,6 +937,144 @@ mod tests {
         assert!(
             !msg.contains("Couldn't fetch origin"),
             "first attempt must skip pre-push fetch, got: {msg}"
+        );
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn clone_skips_working_tree_checkout_but_populates_index() {
+        // The whole point of switching `Repo::clone` to a no-checkout
+        // clone is that the working tree stays empty (zero per-file
+        // syscalls during clone for repos with thousands of files) while
+        // the index stays fully in sync with HEAD — otherwise the next
+        // `commit_state_file` would build a tree containing only the
+        // newly-added state file, deleting everything else inherited
+        // from HEAD.
+        let base = unique_tmp_dir("clone-no-checkout");
+        let bare_path = base.join("remote.git");
+        let seed_path = base.join("seed");
+        let dest_path = base.join("dest");
+        let bare_url = bare_path.to_str().unwrap().to_string();
+
+        // Build a remote with a few tracked files in HEAD.
+        Repository::init_bare(&bare_path).unwrap();
+        let seed = Repository::init(&seed_path).unwrap();
+        seed.remote("origin", &bare_url).unwrap();
+        std::fs::write(seed_path.join("a.txt"), "alpha").unwrap();
+        std::fs::write(seed_path.join("b.txt"), "beta").unwrap();
+        std::fs::create_dir_all(seed_path.join("nested")).unwrap();
+        std::fs::write(seed_path.join("nested/c.txt"), "gamma").unwrap();
+        stage_and_commit(&seed, "seed commit");
+        let branch = seed.head().unwrap().shorthand().unwrap().to_string();
+        push_branch(&seed, &branch);
+
+        let conf = GitConfig {
+            url: bare_url.clone(),
+            branch: branch.clone(),
+            gates_branch: None,
+            private_key: String::new(),
+            dir: dest_path.to_str().unwrap().to_string(),
+            depth: None,
+        };
+        let repo = Repo::clone(conf).expect("clone should succeed");
+
+        // Working tree is empty — the only entry under `dest/` should be
+        // the `.git` directory.
+        let mut wd_entries: Vec<String> = std::fs::read_dir(&dest_path)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        wd_entries.sort();
+        assert_eq!(
+            wd_entries,
+            vec![".git".to_string()],
+            "no-checkout clone must leave the working tree empty"
+        );
+
+        // Index is fully populated — every blob from HEAD's tree should
+        // be in the index so a downstream `write_tree()` would still
+        // produce the HEAD tree (plus any additions).
+        let mut index = repo.inner.index().unwrap();
+        let entry_paths: std::collections::BTreeSet<String> = (0..index.len())
+            .map(|i| String::from_utf8(index.get(i).unwrap().path).expect("utf8 index path"))
+            .collect();
+        let expected: std::collections::BTreeSet<String> = ["a.txt", "b.txt", "nested/c.txt"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert_eq!(
+            entry_paths, expected,
+            "index must include every HEAD entry after the Mixed-reset",
+        );
+
+        // `write_tree` from the just-cloned index should reproduce HEAD's
+        // tree exactly — this is what makes `commit_state_file` safe.
+        let written = index.write_tree_to(&repo.inner).unwrap();
+        let head_tree = repo
+            .inner
+            .head()
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .tree()
+            .unwrap()
+            .id();
+        assert_eq!(
+            written, head_tree,
+            "index.write_tree() must reproduce HEAD tree post-clone",
+        );
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn checkout_paths_materialises_only_requested_files() {
+        // The concourse `in`/`check` flows pair a no-checkout clone with
+        // a targeted `checkout_paths` for just the files cepler reads
+        // from disk. Verify that the helper writes exactly those paths
+        // (single files + glob patterns) and nothing else.
+        let base = unique_tmp_dir("checkout-paths");
+        let bare_path = base.join("remote.git");
+        let seed_path = base.join("seed");
+        let dest_path = base.join("dest");
+        let bare_url = bare_path.to_str().unwrap().to_string();
+
+        Repository::init_bare(&bare_path).unwrap();
+        let seed = Repository::init(&seed_path).unwrap();
+        seed.remote("origin", &bare_url).unwrap();
+        std::fs::write(seed_path.join("cepler.yml"), "deployment: demo").unwrap();
+        std::fs::create_dir_all(seed_path.join(".cepler/demo")).unwrap();
+        std::fs::write(seed_path.join(".cepler/demo/staging.state"), "v1").unwrap();
+        std::fs::write(seed_path.join(".cepler/demo/prod.state"), "v2").unwrap();
+        std::fs::write(seed_path.join("other.txt"), "should stay unchecked-out").unwrap();
+        stage_and_commit(&seed, "seed");
+        let branch = seed.head().unwrap().shorthand().unwrap().to_string();
+        push_branch(&seed, &branch);
+
+        let conf = GitConfig {
+            url: bare_url.clone(),
+            branch: branch.clone(),
+            gates_branch: None,
+            private_key: String::new(),
+            dir: dest_path.to_str().unwrap().to_string(),
+            depth: None,
+        };
+        let repo = Repo::clone(conf).expect("clone");
+
+        repo.checkout_paths(["cepler.yml", ".cepler/demo/*"])
+            .expect("checkout_paths");
+
+        let on_disk = |p: &str| dest_path.join(p).is_file();
+        assert!(on_disk("cepler.yml"), "config must be materialised");
+        assert!(
+            on_disk(".cepler/demo/staging.state"),
+            "state files matching the glob must be materialised"
+        );
+        assert!(on_disk(".cepler/demo/prod.state"));
+        assert!(
+            !on_disk("other.txt"),
+            "files not matching any requested path must stay unchecked-out"
         );
 
         std::fs::remove_dir_all(&base).ok();

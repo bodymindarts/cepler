@@ -46,7 +46,14 @@ pub fn exec(destination: &str) -> Result<()> {
         source.branch, hash, summary
     );
 
-    let config = Config::from_file(&source.config)?;
+    // `Repo::clone` skips the implicit full-tree checkout; pull in just
+    // the files cepler reads from disk before continuing.
+    let config = populate_workspace_metadata(
+        &repo,
+        &source.config,
+        source.gates_file.as_ref(),
+        source.gates_branch.as_ref(),
+    )?;
     let fetch_credentials = repo.fetch_credentials().cloned();
     let ws = Workspace::new(&config.scope, source.config, source.ignore_queue)?
         .with_fetch_credentials(fetch_credentials);
