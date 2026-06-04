@@ -1,5 +1,5 @@
 use super::*;
-use crate::{config::Config, workspace::Workspace};
+use crate::workspace::Workspace;
 use std::{
     env,
     fs::File,
@@ -66,7 +66,15 @@ pub fn exec() -> Result<()> {
         source.branch, hash, summary
     );
 
-    let config = Config::from_file(&source.config)?;
+    // Idempotent on the pull path (where `Repo::pull`'s Hard reset has
+    // already populated the WT) and load-bearing on the no-checkout
+    // clone path (where the WT is still empty).
+    let config = populate_workspace_metadata(
+        &repo,
+        &source.config,
+        source.gates_file.as_ref(),
+        source.gates_branch.as_ref(),
+    )?;
     let ws = Workspace::new(&config.scope, source.config.clone(), source.ignore_queue)?;
     let mut res = Vec::new();
     let environment = if let Some(environment) = source.environment {

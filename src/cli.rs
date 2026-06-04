@@ -88,8 +88,13 @@ pub fn run() -> Result<()> {
         };
         let path = std::path::Path::new(&dir);
         if !path.exists() || path.read_dir()?.next().is_none() {
-            Repo::clone(conf)?;
+            // `Repo::clone` skips the implicit working-tree checkout for
+            // perf — fine for the concourse `in`/`check` paths, but CLI
+            // users expect a fully-materialised workspace to inspect /
+            // operate on. Materialise HEAD explicitly here.
+            let repo = Repo::clone(conf)?;
             std::env::set_current_dir(dir)?;
+            repo.checkout_head()?;
         } else {
             std::env::set_current_dir(dir)?;
             Repo::open(None)?.pull(conf)?;

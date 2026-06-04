@@ -1,4 +1,4 @@
-use crate::{config::*, repo::*, workspace::StateId};
+use crate::{config::*, database::Database, repo::*, workspace::StateId};
 use anyhow::*;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::path::Path;
@@ -27,10 +27,13 @@ struct Source {
     #[serde(default = "default_config_path")]
     config: String,
     /// Shallow-clone depth for the `in` step. Mirrors the concourse
-    /// git-resource's `depth`. `None` or `0` = full clone (current default).
-    /// When set, cepler will deepen on-demand if a history walk crosses the
-    /// shallow boundary.
-    #[serde(default)]
+    /// git-resource's `depth`. Defaults to 50 — large enough that cepler's
+    /// history walks almost always stay within the clone, small enough to
+    /// keep the first `get` fast on big repos. Set to `0` to opt out and
+    /// do a full clone. The on-demand deepening logic still kicks in if a
+    /// walk reaches the shallow boundary, so correctness is preserved
+    /// regardless of the value.
+    #[serde(default = "default_depth")]
     depth: Option<i32>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -77,6 +80,51 @@ struct ResourceData {
 
 fn default_config_path() -> String {
     "cepler.yml".to_string()
+}
+
+fn default_depth() -> Option<i32> {
+    Some(50)
+}
+
+/// Materialise the small set of files cepler itself reads from disk
+/// (config + database state directory + optional on-disk gates file)
+/// from a freshly no-checkout-cloned repo. Everything else stays
+/// unwritten — `Workspace::prepare` / `Workspace::reproduce` selectively
+/// checks out env-specific files as a separate step. Returns the parsed
+/// config so the caller doesn't have to round-trip through
+/// `Config::from_file` afterwards.
+fn populate_workspace_metadata(
+    repo: &Repo,
+    path_to_config: &str,
+    gates_file: Option<&String>,
+    gates_branch: Option<&String>,
+) -> Result<Config> {
+    let (head, _) = repo.head_commit_summary()?;
+    let config = repo
+        .get_file_content(head, Path::new(path_to_config), |bytes| {
+            Config::from_reader(bytes)
+        })?
+        .context(format!(
+            "Config file '{}' not found in HEAD",
+            path_to_config
+        ))?;
+
+    let state_dir = Database::state_dir_from_config(&config.scope, path_to_config);
+    let mut paths: Vec<String> = vec![
+        path_to_config.to_string(),
+        // libgit2's checkout pathspec is fnmatch-style — a single `*`
+        // matches everything directly inside the state dir, which is
+        // flat (one `<env>.state` file per environment).
+        format!("{}/*", state_dir),
+    ];
+    // Only the on-disk gates path needs materialising; when `gates_branch`
+    // is set the gates file is read directly from the branch's tree via
+    // `repo.get_file_from_branch`, never from disk.
+    if let (Some(file), None) = (gates_file, gates_branch) {
+        paths.push(file.clone());
+    }
+    repo.checkout_paths(paths)?;
+    Ok(config)
 }
 
 fn get_gate(
