@@ -1,3 +1,8 @@
+# [cepler release v0.7.20](https://github.com/bodymindarts/cepler/releases/tag/v0.7.20)
+
+- remove shallow-clone support from the concourse `in` resource. The `depth` source param introduced in v0.7.18 (default `50` since v0.7.19) saved ~10s on the initial clone but exposed correctness bugs in the deepen-on-demand path — most recently the "object not found" failure on propagated `from_commit`s that sit far behind the shallow boundary (volcano-qa-lana-bank build #924). With the no-checkout clone optimisation from v0.7.19 still in place, the network/pack phase is already a small fraction of total `in` time, so the complexity wasn't worth carrying.
+- `Source.depth`, `GitConfig.depth`, `Repo::fetch_credentials`, the shallow-boundary detector, and the deepen-on-demand calls in `walk_commits_before` / `find_last_changed_commit` are all gone. The full-clone path that everyone gets now is what worked correctly in v0.7.18 anyway.
+
 # [cepler release v0.7.19](https://github.com/bodymindarts/cepler/releases/tag/v0.7.19)
 
 - concourse `in`/`check`: skip libgit2's implicit full working-tree checkout during the initial clone. On repos with many files this was the dominant wall-clock cost of the `get` step — silent (libgit2 emits no progress for it) and unrelated to network speed. Only the files cepler actually reads from disk (config + state dir + on-disk gates file) are materialised post-clone; everything else stays unwritten until `prepare`/`reproduce` selectively pulls it in.
