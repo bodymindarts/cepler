@@ -1,1 +1,1 @@
-Empty - please add release notes here
+- concourse `in`: emit `[cepler-perf]` timing lines for each phase (RepoBuilder::clone, Mixed reset, config read, selective checkout, ws.check, ws.prepare / ws.reproduce). Diagnostic only — no behaviour change. Lets the operator attribute the wall-clock of an `in` invocation without re-running with manual instrumentation.
