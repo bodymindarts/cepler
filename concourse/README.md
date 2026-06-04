@@ -80,7 +80,6 @@ The `put` operation will commit the state via the command `cepler record -e <env
 | `gates_file` | no | — | path to a gates file |
 | `gates_branch` | no | — | branch the gates file lives on |
 | `ignore_queue` | no | `false` | skip queue ordering |
-| `depth` | no | `50` | shallow-clone depth for the `in` step, mirroring the official `git` resource's `depth`. The default of 50 is plenty for most state-tracking repos; cepler deepens on-demand if a history walk reaches the shallow boundary, so correctness is preserved at any value. Set to `0` to opt out and do a full clone. |
 
 ## Pipeline generation
 

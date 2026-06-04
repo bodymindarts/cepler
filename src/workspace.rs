@@ -8,7 +8,6 @@ pub struct Workspace {
     scope: String,
     ignore_queue: bool,
     db: Database,
-    fetch_credentials: Option<FetchCredentials>,
 }
 
 pub struct StateId {
@@ -23,20 +22,11 @@ impl Workspace {
             scope: scope.to_string(),
             path_to_config,
             ignore_queue,
-            fetch_credentials: None,
         })
     }
 
-    /// Attach credentials so that `Repo::open` inside the workspace methods
-    /// can deepen the shallow clone on-demand when a history walk reaches the
-    /// shallow boundary. Only the concourse `in` step has these.
-    pub fn with_fetch_credentials(mut self, creds: Option<FetchCredentials>) -> Self {
-        self.fetch_credentials = creds;
-        self
-    }
-
     fn open_repo(&self, gate: Option<String>) -> Result<Repo> {
-        Ok(Repo::open(gate)?.with_fetch_credentials(self.fetch_credentials.clone()))
+        Repo::open(gate)
     }
 
     pub fn ls(&self, env: &EnvironmentConfig, gate: Option<String>) -> Result<Vec<String>> {

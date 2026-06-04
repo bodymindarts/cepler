@@ -26,15 +26,6 @@ struct Source {
     ignore_queue: bool,
     #[serde(default = "default_config_path")]
     config: String,
-    /// Shallow-clone depth for the `in` step. Mirrors the concourse
-    /// git-resource's `depth`. Defaults to 50 — large enough that cepler's
-    /// history walks almost always stay within the clone, small enough to
-    /// keep the first `get` fast on big repos. Set to `0` to opt out and
-    /// do a full clone. The on-demand deepening logic still kicks in if a
-    /// walk reaches the shallow boundary, so correctness is preserved
-    /// regardless of the value.
-    #[serde(default = "default_depth")]
-    depth: Option<i32>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Version {
@@ -80,10 +71,6 @@ struct ResourceData {
 
 fn default_config_path() -> String {
     "cepler.yml".to_string()
-}
-
-fn default_depth() -> Option<i32> {
-    Some(50)
 }
 
 /// Materialise the small set of files cepler itself reads from disk

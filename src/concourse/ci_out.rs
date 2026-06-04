@@ -18,8 +18,6 @@ pub fn exec(origin: &str) -> Result<()> {
         gates_branch: source.gates_branch.clone(),
         private_key: source.private_key,
         dir: origin.to_string(),
-        // `out` doesn't clone; depth would be a no-op here.
-        depth: None,
     };
     let config = Config::from_file(&source.config)?;
     let environment = out_params.environment.ok_or(()).or_else(|_| {
