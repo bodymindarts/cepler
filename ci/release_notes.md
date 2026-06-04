@@ -1,2 +1,1 @@
-- concourse `in`/`check`: skip libgit2's implicit full working-tree checkout during the initial clone. On repos with many files this was the dominant wall-clock cost of the `get` step — silent (libgit2 emits no progress for it) and unrelated to network speed. Only the files cepler actually reads from disk (config + state dir + on-disk gates file) are materialised post-clone; everything else stays unwritten until `prepare`/`reproduce` selectively pulls it in.
-- concourse `in`: `depth` source param now defaults to `50` instead of "full clone" — large enough for the on-demand deepener to almost never fire, small enough that the network/pack phase finishes in seconds. Opt out with `depth: 0`.
+Empty - please add release notes here
