@@ -7,7 +7,8 @@ if [[ $(which ytt) == "" ]]; then
   exit 1
 fi
 
-target="${FLY_TARGET:-cepler}"
+target="${FLY_TARGET:-galoy}"
+team="${FLY_TEAM:-cepler}"
 
 REPO_ROOT_DIR="$(dirname $( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd ))"
 
@@ -16,7 +17,7 @@ trap "rm -rf ${TMPDIR}" INT TERM QUIT EXIT
 
 ytt -f ci/pipeline.yml -f ci/values.yml > ${TMPDIR}/pipeline.yml
 
-echo "Updating pipeline @ ${target}"
+echo "Updating pipeline @ ${target} (team: ${team})"
 
-fly -t ${target} set-pipeline -p cepler -c ${TMPDIR}/pipeline.yml
-fly -t ${target} unpause-pipeline -p cepler
+fly -t ${target} set-pipeline --team ${team} -p cepler -c ${TMPDIR}/pipeline.yml
+fly -t ${target} unpause-pipeline --team ${team} -p cepler
