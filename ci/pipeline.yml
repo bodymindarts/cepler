@@ -425,13 +425,6 @@ resources:
   type: semver
   source:
     driver: git
-    #! Was `file: version`, which collides with the branch name (`version`):
-    #! semver-resource's getOldVersions calls `git log ... <file>` and
-    #! `git show <commit>:<file>` without a `--` separator, so when both a
-    #! local branch and a file are named `version` git refuses with
-    #! `fatal: ambiguous argument: both revision and filename` (exit 128)
-    #! and the resource fails to check. Use `number` to disambiguate —
-    #! the file content (a semver string) is unchanged.
     file: number
     uri: #@ data.values.git_uri
     branch: #@ data.values.git_version_branch
