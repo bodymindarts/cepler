@@ -16,7 +16,7 @@ use std::{
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FileHash(String);
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct CommitHash(String);
 impl fmt::Display for CommitHash {
@@ -350,6 +350,64 @@ impl Repo {
         remote
             .fetch(&[creds.branch.as_str()], Some(&mut fo), None)
             .is_ok()
+    }
+
+    /// Fetch the given commits into the local ODB with `depth=1` — just the
+    /// trees and blobs reachable from each commit, no history before it.
+    /// Used by `Workspace::prepare` to materialise propagated files whose
+    /// `from_commit` is recorded in the previous env's state file. Those
+    /// commits can sit arbitrarily far back in the deploy branch's history
+    /// (5k+ commits for the volcano-qa lana-bank state branch), well past
+    /// any reasonable shallow clone depth — progressive deepening would
+    /// take many round-trips guessing the right depth, whereas fetching by
+    /// OID gets exactly what's needed in one.
+    ///
+    /// Requires the server to advertise the `tip-oid` or `reachable-oid`
+    /// capability — GitHub does both by default; self-hosted servers need
+    /// `uploadpack.allow{Any,Reachable}Sha1InWant=true`. If unsupported,
+    /// libgit2 surfaces a clear "cannot fetch a specific object from the
+    /// remote repository" error.
+    ///
+    /// No-op when:
+    /// - the repo wasn't shallow-cloned (we have no `fetch_credentials`),
+    /// - the commits are already in the local ODB.
+    pub fn fetch_specific_commits(&self, commits: &[&CommitHash]) -> Result<()> {
+        let Some(creds) = self.fetch_credentials.as_ref() else {
+            // Full clone — every commit reachable from HEAD is already
+            // local. If a caller passes in an unreachable OID we'd
+            // surface that via `checkout_file_from`'s own `find_object`,
+            // which is the right place to report it.
+            return Ok(());
+        };
+        let mut to_fetch: Vec<String> = Vec::new();
+        for hash in commits {
+            let oid = Oid::from_str(&hash.0)
+                .with_context(|| format!("invalid commit hash: {}", hash.0))?;
+            if self
+                .inner
+                .find_object(oid, Some(ObjectType::Commit))
+                .is_err()
+            {
+                to_fetch.push(hash.0.clone());
+            }
+        }
+        if to_fetch.is_empty() {
+            return Ok(());
+        }
+        eprintln!(
+            "Fetching {} commit(s) referenced by propagated state",
+            to_fetch.len()
+        );
+        let callbacks = remote_callbacks(creds.private_key.clone());
+        let mut fo = git2::FetchOptions::new();
+        fo.remote_callbacks(callbacks);
+        fo.depth(1);
+        let mut remote = self.inner.find_remote("origin")?;
+        let refspec_refs: Vec<&str> = to_fetch.iter().map(|s| s.as_str()).collect();
+        remote
+            .fetch(&refspec_refs, Some(&mut fo), None)
+            .context("Couldn't fetch propagated commits by OID")?;
+        Ok(())
     }
 
     pub fn commit_state_file(&self, scope: &str, file_name: String) -> Result<()> {
@@ -1076,6 +1134,56 @@ mod tests {
             !on_disk("other.txt"),
             "files not matching any requested path must stay unchecked-out"
         );
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn fetch_specific_commits_is_noop_when_already_in_odb_or_no_credentials() {
+        // libgit2's local transport doesn't support OID-in-want (and
+        // doesn't even support shallow fetches in unit tests), so we
+        // can't end-to-end exercise the actual fetch round-trip here.
+        // What we *can* assert is that the two no-op paths bail out
+        // cleanly — those are the load-bearing invariants for callers:
+        // `Workspace::prepare` calls this unconditionally, and it must
+        // not error on full clones or on already-cached commits.
+        let base = unique_tmp_dir("fetch-specific-noop");
+        let bare_path = base.join("remote.git");
+        let work_path = base.join("work");
+        let bare_url = bare_path.to_str().unwrap().to_string();
+
+        Repository::init_bare(&bare_path).unwrap();
+        let seed = Repository::init(&work_path).unwrap();
+        seed.remote("origin", &bare_url).unwrap();
+        std::fs::write(work_path.join("file.txt"), "v1").unwrap();
+        let oid = stage_and_commit(&seed, "seed");
+        let branch = seed.head().unwrap().shorthand().unwrap().to_string();
+        push_branch(&seed, &branch);
+
+        let conf = GitConfig {
+            url: bare_url.clone(),
+            branch: branch.clone(),
+            gates_branch: None,
+            private_key: String::new(),
+            dir: base.join("clone").to_str().unwrap().to_string(),
+            depth: None,
+        };
+        let repo = Repo::clone(conf).expect("clone");
+
+        // Full clone path: `fetch_credentials` is None even when the
+        // OID isn't in the ODB. Should still return Ok (the bare
+        // `find_object` in `checkout_file_from` is the right place to
+        // report unreachable OIDs on full clones).
+        assert!(repo.fetch_credentials.is_none());
+        let fabricated = CommitHash("0000000000000000000000000000000000000001".to_string());
+        repo.fetch_specific_commits(&[&fabricated])
+            .expect("no-creds path must be a no-op");
+
+        // All-in-ODB path: passing a hash we already have must not
+        // trigger any remote interaction.
+        let local_hash = CommitHash(oid.to_string());
+        repo.fetch_specific_commits(&[&local_hash])
+            .expect("already-in-odb path must be a no-op");
 
         std::fs::remove_dir_all(&base).ok();
     }

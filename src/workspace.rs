@@ -125,6 +125,29 @@ impl Workspace {
         let head_patterns: Vec<_> = env.head_file_patterns().collect();
         repo.checkout_gate(&head_patterns, &self.ignore_list(), force_clean)?;
         let new_env_state = self.construct_env_state(&repo, env, false)?;
+
+        // Propagated files' `from_commit` values come from the previous
+        // env's state file and can sit arbitrarily far back in history.
+        // On a shallow clone the per-file `checkout_file_from` below would
+        // hit "object not found" — the depth-N clone doesn't include those
+        // commits, and `find_object` has no walk to anchor a deepen-on-
+        // demand. Batch-fetch them by OID with depth=1 (we only need the
+        // tree at each commit, not its history) in a single round-trip so
+        // every subsequent `find_object` is a cheap local lookup.
+        //
+        // A no-op on full clones (no `fetch_credentials`) and when every
+        // OID is already in the local ODB.
+        let propagated_commits: std::collections::HashSet<&CommitHash> = new_env_state
+            .files
+            .iter()
+            .filter(|(ident, _)| ident.propagated())
+            .map(|(_, state)| &state.from_commit)
+            .collect();
+        if !propagated_commits.is_empty() {
+            let v: Vec<&CommitHash> = propagated_commits.into_iter().collect();
+            repo.fetch_specific_commits(&v)?;
+        }
+
         for (ident, state) in new_env_state.files.iter() {
             if ident.propagated() {
                 repo.checkout_file_from(&ident.name(), &state.from_commit)?;
