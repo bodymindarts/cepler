@@ -3,3 +3,4 @@ MacOSX*
 
 .direnv
 .claude/settings.local.json
+tmp/

@@ -23,18 +23,13 @@ pub fn exec(destination: &str) -> Result<()> {
         return empty_repo(version);
     };
 
-    if let Some(d) = source.depth.filter(|d| *d > 0) {
-        eprintln!("Cloning repo to '{}' (depth {})", destination, d);
-    } else {
-        eprintln!("Cloning repo to '{}'", destination);
-    }
+    eprintln!("Cloning repo to '{}'", destination);
     let conf = GitConfig {
         url: source.uri,
         branch: source.branch.clone(),
         gates_branch: source.gates_branch.clone(),
         private_key: source.private_key,
         dir: destination.to_string(),
-        depth: source.depth,
     };
 
     let path = Path::new(&destination);
@@ -54,9 +49,7 @@ pub fn exec(destination: &str) -> Result<()> {
         source.gates_file.as_ref(),
         source.gates_branch.as_ref(),
     )?;
-    let fetch_credentials = repo.fetch_credentials().cloned();
-    let ws = Workspace::new(&config.scope, source.config, source.ignore_queue)?
-        .with_fetch_credentials(fetch_credentials);
+    let ws = Workspace::new(&config.scope, source.config, source.ignore_queue)?;
     let env = config
         .environments
         .get(&environment)
