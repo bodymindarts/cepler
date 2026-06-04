@@ -67,14 +67,25 @@ pub fn exec(destination: &str) -> Result<()> {
     )?;
 
     let (state_id, diff) = if should_prepare {
-        match ws.check(env, gate.clone())? {
+        let t = std::time::Instant::now();
+        let check_result = ws.check(env, gate.clone())?;
+        eprintln!(
+            "[cepler-perf] ws.check (construct_env_state walk): {:.2}s",
+            t.elapsed().as_secs_f64()
+        );
+        match check_result {
             Some((state_id, _)) if &state_id.head_commit != wanted_trigger => {
                 eprintln!("Trigger is out of sync.");
                 std::process::exit(1);
             }
             None => {
                 eprintln!("Nothing new to deploy... reproducing last state");
+                let t = std::time::Instant::now();
                 let state_id = ws.reproduce(env, true)?;
+                eprintln!(
+                    "[cepler-perf] ws.reproduce: {:.2}s",
+                    t.elapsed().as_secs_f64()
+                );
                 if &state_id.head_commit != wanted_trigger {
                     eprintln!("Reproduced state is out of sync - providing empty dir");
                     return empty_repo(version);
@@ -83,13 +94,23 @@ pub fn exec(destination: &str) -> Result<()> {
             }
             Some(ret) => {
                 eprintln!("Preparing the workspace");
+                let t = std::time::Instant::now();
                 ws.prepare(env, gate, true)?;
+                eprintln!(
+                    "[cepler-perf] ws.prepare (construct_env_state + propagated checkouts): {:.2}s",
+                    t.elapsed().as_secs_f64()
+                );
                 ret
             }
         }
     } else {
         eprintln!("Reproducing last state");
+        let t = std::time::Instant::now();
         let state_id = ws.reproduce(env, true)?;
+        eprintln!(
+            "[cepler-perf] ws.reproduce: {:.2}s",
+            t.elapsed().as_secs_f64()
+        );
         if &state_id.head_commit != wanted_trigger {
             eprintln!("Reproduced state is out of sync - providing empty dir");
             return empty_repo(version);

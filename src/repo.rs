@@ -88,7 +88,13 @@ impl Repo {
         builder.fetch_options(fo);
         builder.branch(&branch);
         builder.with_checkout(no_checkout);
+
+        let t = std::time::Instant::now();
         let inner = builder.clone(&url, Path::new(&dir))?;
+        eprintln!(
+            "[cepler-perf] RepoBuilder::clone (fetch + pack index): {:.2}s",
+            t.elapsed().as_secs_f64()
+        );
 
         // libgit2 short-circuits both working-tree AND index population
         // when checkout_strategy == GIT_CHECKOUT_NONE (see clone.c
@@ -99,11 +105,16 @@ impl Repo {
         // tree containing only the new state file, deleting the rest of
         // the repo. ResetType::Mixed fills the index from HEAD without
         // touching the working tree.
+        let t = std::time::Instant::now();
         {
             let head_commit = inner.head()?.peel_to_commit()?;
             let head_obj = head_commit.into_object();
             inner.reset(&head_obj, ResetType::Mixed, None)?;
         }
+        eprintln!(
+            "[cepler-perf] index sync (Mixed reset from HEAD): {:.2}s",
+            t.elapsed().as_secs_f64()
+        );
 
         Ok(Self { inner, gate: None })
     }

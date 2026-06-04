@@ -87,6 +87,8 @@ fn populate_workspace_metadata(
     gates_branch: Option<&String>,
 ) -> Result<Config> {
     let (head, _) = repo.head_commit_summary()?;
+
+    let t = std::time::Instant::now();
     let config = repo
         .get_file_content(head, Path::new(path_to_config), |bytes| {
             Config::from_reader(bytes)
@@ -95,6 +97,10 @@ fn populate_workspace_metadata(
             "Config file '{}' not found in HEAD",
             path_to_config
         ))?;
+    eprintln!(
+        "[cepler-perf] read config from HEAD tree: {:.2}s",
+        t.elapsed().as_secs_f64()
+    );
 
     let state_dir = Database::state_dir_from_config(&config.scope, path_to_config);
     let mut paths: Vec<String> = vec![
@@ -110,7 +116,12 @@ fn populate_workspace_metadata(
     if let (Some(file), None) = (gates_file, gates_branch) {
         paths.push(file.clone());
     }
+    let t = std::time::Instant::now();
     repo.checkout_paths(paths)?;
+    eprintln!(
+        "[cepler-perf] selective checkout (config + state dir): {:.2}s",
+        t.elapsed().as_secs_f64()
+    );
     Ok(config)
 }
 
