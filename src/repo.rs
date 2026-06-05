@@ -70,41 +70,61 @@ impl Repo {
             ..
         }: GitConfig,
     ) -> Result<Self> {
-        let callbacks = remote_callbacks(private_key);
-        let mut fo = git2::FetchOptions::new();
-        fo.remote_callbacks(callbacks);
-
-        // Skip libgit2's implicit working-tree checkout. For repos with
-        // many files it dominates clone wall-clock time (~2-3 minutes on
-        // the volcano-qa state repo) and emits no progress, so it looks
-        // like a hang. Callers materialise just the files they actually
-        // need via `checkout_paths` (concourse `in`/`check`) or
-        // `checkout_head` (CLI), which is orders of magnitude faster than
-        // writing every blob in HEAD.
-        let mut no_checkout = git2::build::CheckoutBuilder::new();
-        no_checkout.dry_run();
-
-        let mut builder = git2::build::RepoBuilder::new();
-        builder.fetch_options(fo);
-        builder.branch(&branch);
-        builder.with_checkout(no_checkout);
+        // Shell out to the git CLI for the fetch instead of using
+        // libgit2's `RepoBuilder::clone`. libgit2's pack indexing is
+        // 5-10x slower than git's for large repos — a long-standing
+        // limitation tracked in libgit2 issues #4674, #3920, #2836 etc.
+        // (root cause: mmap/munmap inefficiency in
+        // `git_mwindow_free_all_locked`). On the volcano-qa lana-bank
+        // state branch this is the difference between ~6s (git CLI) and
+        // ~64s (libgit2, measured in v0.7.21's `[cepler-perf]` lines).
+        // The container image already ships git + openssh via Alpine
+        // (see images/concourse/Dockerfile).
+        //
+        // Once the fetch is done we hand the repo back to libgit2 via
+        // `Repository::open` and keep using the typed API for everything
+        // else — only the clone subprocess is the shell-out.
+        let _key_file = write_ssh_key(&private_key)?;
+        let mut cmd = std::process::Command::new("git");
+        cmd.args(["clone", "--no-checkout", "--branch", &branch, &url, &dir])
+            .stderr(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit());
+        if let Some(ref kf) = _key_file {
+            // IdentitiesOnly: don't try other ssh-agent keys.
+            // BatchMode: never prompt interactively.
+            // Strict/Known-hosts disabled to match the prior libgit2
+            // `CertificatePassthrough`-style trust-on-first-use posture
+            // (the concourse pipelines run against known remotes and the
+            // private_key is the actual auth).
+            cmd.env(
+                "GIT_SSH_COMMAND",
+                format!(
+                    "ssh -i {} -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
+                    kf.path().display()
+                ),
+            );
+        }
 
         let t = std::time::Instant::now();
-        let inner = builder.clone(&url, Path::new(&dir))?;
+        let status = cmd.status().context(
+            "Couldn't spawn `git clone` — is the git CLI on PATH? (the concourse resource image ships it; standalone CLI users need their own)",
+        )?;
         eprintln!(
-            "[cepler-perf] RepoBuilder::clone (fetch + pack index): {:.2}s",
+            "[cepler-perf] git clone subprocess (fetch + pack index): {:.2}s",
             t.elapsed().as_secs_f64()
         );
+        if !status.success() {
+            anyhow::bail!("git clone failed with exit {:?}", status.code());
+        }
 
-        // libgit2 short-circuits both working-tree AND index population
-        // when checkout_strategy == GIT_CHECKOUT_NONE (see clone.c
-        // `should_checkout`). The index needs to be in sync with HEAD so
-        // that a later `index.write_tree()` from `commit_state_file` on
-        // the `out` step produces a tree that still includes everything
-        // inherited from HEAD — without this step `out` would commit a
-        // tree containing only the new state file, deleting the rest of
-        // the repo. ResetType::Mixed fills the index from HEAD without
-        // touching the working tree.
+        let inner = Repository::open(Path::new(&dir))?;
+
+        // `git clone --no-checkout` leaves the index populated from HEAD
+        // (unlike libgit2's GIT_CHECKOUT_NONE which skipped both WT and
+        // index). The Mixed reset is therefore redundant on the git CLI
+        // path but we keep it as defensive insurance — at ~0s cost per
+        // the v0.7.21 timing logs it's free, and it makes the index
+        // invariant explicit at this point in the flow.
         let t = std::time::Instant::now();
         {
             let head_commit = inner.head()?.peel_to_commit()?;
@@ -606,6 +626,47 @@ impl Repo {
     }
 }
 
+/// Write the given SSH private key to a tempfile with 0600 perms so we
+/// can point `GIT_SSH_COMMAND -i` at it. Returns `None` when the key is
+/// empty (the local-bare-repo unit tests pass `""` because they never
+/// touch SSH). The returned [`KeyFile`] removes the tempfile on drop.
+fn write_ssh_key(private_key: &str) -> Result<Option<KeyFile>> {
+    if private_key.is_empty() {
+        return Ok(None);
+    }
+    let path = std::env::temp_dir().join(format!(
+        "cepler-ssh-key-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0),
+    ));
+    std::fs::write(&path, private_key)
+        .with_context(|| format!("Couldn't write SSH key to {}", path.display()))?;
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+        .with_context(|| format!("Couldn't set 0600 perms on {}", path.display()))?;
+    Ok(Some(KeyFile(path)))
+}
+
+/// RAII guard: removes the tempfile holding an SSH private key as soon
+/// as it goes out of scope (including panics), so we never leave a key
+/// behind on disk if the clone subprocess fails.
+struct KeyFile(PathBuf);
+
+impl KeyFile {
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for KeyFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
 fn remote_callbacks(key: String) -> RemoteCallbacks<'static> {
     let mut callbacks = RemoteCallbacks::new();
     callbacks.credentials(move |_url, username_from_url, _allowed_types| {
@@ -917,5 +978,56 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn write_ssh_key_round_trips_content_and_perms_and_drop_removes_file() {
+        // The shell-out clone path writes the source's private_key to a
+        // tempfile we then point `GIT_SSH_COMMAND -i` at. Two invariants
+        // we don't want to lose:
+        //   1. The file has 0600 perms (ssh refuses anything looser).
+        //   2. The `KeyFile` RAII guard removes the tempfile on drop —
+        //      so a panic between `write_ssh_key` and `git status()`
+        //      can't leave the private key sitting in /tmp.
+        use std::os::unix::fs::PermissionsExt;
+
+        let kf = write_ssh_key("not-a-real-key-but-non-empty\n")
+            .expect("write_ssh_key should succeed")
+            .expect("non-empty key should produce Some(KeyFile)");
+        let path_after_drop = kf.path().to_path_buf();
+        assert!(
+            path_after_drop.is_file(),
+            "key file must exist while KeyFile is alive"
+        );
+        let mode = std::fs::metadata(&path_after_drop)
+            .unwrap()
+            .permissions()
+            .mode();
+        // mask off the file-type bits; perms live in the low 9 bits.
+        assert_eq!(
+            mode & 0o777,
+            0o600,
+            "key file must be 0600 (ssh rejects looser perms)"
+        );
+        let body = std::fs::read_to_string(&path_after_drop).unwrap();
+        assert_eq!(body, "not-a-real-key-but-non-empty\n");
+        drop(kf);
+        assert!(
+            !path_after_drop.exists(),
+            "KeyFile::drop must remove the tempfile to avoid leaking the SSH key on disk"
+        );
+    }
+
+    #[test]
+    fn write_ssh_key_returns_none_for_empty_input() {
+        // The local-bare-repo unit tests pass `private_key: String::new()`
+        // because they never touch SSH — `Repo::clone` must skip the
+        // tempfile dance in that case (and also avoid setting
+        // GIT_SSH_COMMAND so git uses its normal defaults).
+        let result = write_ssh_key("").expect("empty key is not an error");
+        assert!(
+            result.is_none(),
+            "empty private_key must short-circuit to None"
+        );
     }
 }
